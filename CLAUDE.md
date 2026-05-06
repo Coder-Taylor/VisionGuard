@@ -63,7 +63,7 @@ git push gitee master
 
 ### Docker 中国网络铁律
 
-**任何 Dockerfile 必须在 `COPY go.mod` 前加 `ENV GOPROXY=https://goproxy.cn,direct`**。
+**规则 1：任何 Dockerfile 必须在 `COPY go.mod` 前加 `ENV GOPROXY=https://goproxy.cn,direct`**。
 
 > **原因**：国内服务器（阿里云等）无法访问 `proxy.golang.org`，go mod download 必定超时。已两次踩坑（2026-05-05、2026-05-06）。
 >
@@ -77,6 +77,18 @@ git push gitee master
 > ```
 >
 > **影响的文件**：`backend/Dockerfile`、`cloud-deploy/Dockerfile`（两个都要改，保持一致）
+
+**规则 2：docker-compose 只包含后端实际依赖的服务。禁止添加未使用的第三方镜像**。
+
+> **原因**：国内服务器无法访问 Docker Hub（`docker.io`、`docker.redpanda.com` 等），任何非 alpine 官方镜像拉取必定超时。
+>
+> **已移除**：Redpanda（Kafka 替代品，808MB）— 后端代码不使用，预留实时推送用。实时推送功能上线后再考虑国内可拉取的替代方案。
+>
+> **当前可用服务（均为轻量 alpine 版）**：
+> - `postgres:16-alpine` ✅
+> - `redis:7-alpine` ✅
+>
+> **影响的文件**：`cloud-deploy/docker-compose.yml`、`cloud-deploy/docker-compose.prod.yml`、`backend/docker-compose.yml`、`backend/docker-compose.prod.yml`（四个都要保持一致）
 
 ---
 
