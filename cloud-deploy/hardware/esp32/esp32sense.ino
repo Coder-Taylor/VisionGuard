@@ -132,6 +132,82 @@ void uploadObstacleAlarm(int d) {
   Serial.println("[避障告警] " + httpPost("/api/v1/alert", body));
 }
 
+// ==================== OCR 药品识别 ====================
+
+String httpPostMultipartImage(String path, const uint8_t* jpegData, int jpegLen, String deviceId, String category) {
+  if (!wifiOnline || jpegData == nullptr || jpegLen == 0) return "";
+
+  WiFiClient client;
+  HTTPClient http;
+  String url = String(BASE_URL) + path;
+
+  String boundary = "----VisionGuard" + String(millis());
+  String boundaryStart = "--" + boundary;
+  String boundaryEnd   = "--" + boundary + "--\r\n";
+
+  // 构造 multipart body
+  // Part 1: image 文件
+  String partHeader1 = boundaryStart + "\r\n";
+  partHeader1 += "Content-Disposition: form-data; name=\"image\"; filename=\"photo.jpg\"\r\n";
+  partHeader1 += "Content-Type: image/jpeg\r\n\r\n";
+  String partFooter1 = "\r\n";
+
+  // Part 2: deviceId 字段
+  String partHeader2 = boundaryStart + "\r\n";
+  partHeader2 += "Content-Disposition: form-data; name=\"deviceId\"\r\n\r\n";
+  partHeader2 += deviceId;
+  String partFooter2 = "\r\n";
+
+  // Part 3: category 字段
+  String partHeader3 = boundaryStart + "\r\n";
+  partHeader3 += "Content-Disposition: form-data; name=\"category\"\r\n\r\n";
+  partHeader3 += category;
+  String partFooter3 = "\r\n" + boundaryEnd;
+
+  // 计算总长度
+  int totalLen = partHeader1.length() + jpegLen + partFooter1.length() +
+                 partHeader2.length() + partFooter2.length() +
+                 partHeader3.length() + partFooter3.length();
+
+  http.begin(client, url);
+  http.addHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
+  if (g_jwt.length() > 0) http.addHeader("Authorization", "Bearer " + g_jwt);
+  http.addHeader("Content-Length", String(totalLen));
+
+  http.POST("");
+  WiFiClient* stream = http.getStreamPtr();
+
+  // 写入 part 1
+  stream->print(partHeader1);
+  stream->write(jpegData, jpegLen);
+  stream->print(partFooter1);
+  // 写入 part 2
+  stream->print(partHeader2);
+  stream->print(partFooter2);
+  // 写入 part 3
+  stream->print(partHeader3);
+  stream->print(partFooter3);
+
+  String resp = http.getString();
+  http.end();
+  return resp;
+}
+
+String pollOcrResult(String deviceId) {
+  String path = "/api/v1/ocr/result/latest?deviceId=" + deviceId;
+  return httpGet(path, true);
+}
+
+String httpGet(String path, bool useJwt) {
+  HTTPClient h;
+  h.begin(String(BASE_URL) + path);
+  if (useJwt && g_jwt.length() > 0) h.addHeader("Authorization", "Bearer " + g_jwt);
+  h.GET();
+  String r = h.getString();
+  h.end();
+  return r;
+}
+
 void setup() {
   Serial.begin(115200);
   prefs.begin("device", false);
@@ -210,6 +286,41 @@ void loop() {
 
     if (testStep == 2 && elapsed > 20000) {
       testStep = 3;
+      Serial.println("\n[测试3] OCR 药品识别 — 等待 K210 拍照...");
+
+      // 从 SD 卡读取测试图片 (实际使用时从 K210 UART 读取)
+      File imgFile = SD.open("/test_medicine.jpg", FILE_READ);
+      if (imgFile) {
+        int imgLen = imgFile.size();
+        uint8_t* jpegBuf = (uint8_t*)malloc(imgLen);
+        if (jpegBuf) {
+          imgFile.read(jpegBuf, imgLen);
+          Serial.print("图片大小: "); Serial.print(imgLen); Serial.println(" bytes");
+
+          String resp = httpPostMultipartImage("/api/v1/ocr/image", jpegBuf, imgLen, g_deviceId, "medicine");
+          Serial.println("[OCR上传] " + resp);
+
+          // 等豆包识别
+          delay(6000);
+
+          String result = pollOcrResult(g_deviceId);
+          Serial.println("[OCR结果] " + result);
+
+          int p1 = result.indexOf("\"speakText\":\"");
+          if (p1 != -1) {
+            p1 += 13;
+            int p2 = result.indexOf("\"", p1);
+            String speakText = result.substring(p1, p2);
+            Serial.print("[语音播报] ");
+            Serial.println(speakText);
+          }
+          free(jpegBuf);
+        }
+        imgFile.close();
+      } else {
+        Serial.println("无测试图片 /test_medicine.jpg，跳过OCR");
+      }
+
       Serial.println("\n===== 测试完成 =====");
     }
   }
