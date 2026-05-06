@@ -2,7 +2,7 @@ package service
 
 import (
 	"fmt"
-	"strings"
+
 	"time"
 
 	"github.com/jry21223/vision-hub/backend/internal/model"
@@ -20,50 +20,30 @@ func NewOcrService(db *gorm.DB, doubao *DoubaoService) *OcrService {
 
 // runDoubaoRecognition 异步调用豆包 API 识别药品
 func (s *OcrService) runDoubaoRecognition(record model.OcrRecord) {
+	fmt.Printf("[OCR] 开始识别 taskId=%s imageURL=%s\n", record.TaskID, record.FileURL)
 	result, err := s.doubao.RecognizeMedicine(record.FileURL)
-	updates := map[string]interface{}{"stage": "doubao_recognizing"}
+	updates := map[string]interface{}{}
 
 	if err != nil {
+		fmt.Printf("[OCR] 豆包识别失败 taskId=%s err=%v\n", record.TaskID, err)
 		updates["status"] = "failed"
 		updates["stage"] = "doubao_failed"
 		updates["fail_reason"] = "doubao_api_error"
 		updates["fail_detail"] = err.Error()
 	} else {
+		fmt.Printf("[OCR] 豆包识别成功 taskId=%s drugName=%s speakText=%s\n", record.TaskID, result.DrugName, result.SpeakText)
 		updates["status"] = "completed"
 		updates["stage"] = "completed"
 		updates["progress"] = 100
+		updates["speak_text"] = result.SpeakText
+		updates["ocr_text"] = result.SpeakText
 		if result.DrugName != "" {
 			updates["medicine_name"] = result.DrugName
-			updates["generic_name"] = result.DrugName
-			updates["ocr_text"] = result.DrugName + " " + result.Specification
-		}
-		if result.Specification != "" {
-			updates["specification"] = result.Specification
-		}
-		if result.Indication != "" {
-			updates["indications"] = result.Indication
-		}
-		if result.Usage != "" {
-			updates["dosage"] = result.Usage
-		}
-		if len(result.Warnings) > 0 {
-			updates["contraindications"] = strings.Join(result.Warnings, "; ")
-		}
-		if result.RiskLevel != "" {
-			updates["risk_level"] = result.RiskLevel
-		} else {
-			updates["risk_level"] = "low"
-		}
-		if result.Confidence > 0 {
-			updates["confidence"] = result.Confidence
-		}
-		if result.Status == "mock" {
-			updates["fail_reason"] = "doubao_mock"
-			updates["fail_detail"] = result.Message
 		}
 	}
 
 	s.db.Model(&record).Updates(updates)
+	fmt.Printf("[OCR] 数据库已更新 taskId=%s status=%v\n", record.TaskID, updates["status"])
 }
 
 // ======================== 图片上传记录 (九.1) ========================
