@@ -297,7 +297,7 @@ void loop() {
           imgFile.read(jpegBuf, imgLen);
           Serial.print("图片大小: "); Serial.print(imgLen); Serial.println(" bytes");
 
-          String resp = httpPostMultipartImage("/api/v1/ocr/image", jpegBuf, imgLen, g_deviceId, "medicine");
+          String resp = httpPostMultipartImage("/api/v1/device/ocr/image", jpegBuf, imgLen, g_deviceId, "medicine");
           Serial.println("[OCR上传] " + resp);
 
           // 等豆包识别

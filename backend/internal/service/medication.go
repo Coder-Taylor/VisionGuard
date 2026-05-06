@@ -147,7 +147,7 @@ func NewDoubaoService(apiKey, apiURL string) *DoubaoService {
 		config: DoubaoConfig{
 			APIKey: apiKey,
 			APIURL: apiURL,
-			Model:  "doubao-seed-1.6-vision",
+			Model:  "ep-20260506095629-bgl8v",
 		},
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}

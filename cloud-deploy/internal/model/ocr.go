@@ -31,7 +31,7 @@ type OcrRecord struct {
 	Suggestions    string    `gorm:"type:text" json:"suggestions,omitempty"` // JSON
 	SuggestionStatus string  `gorm:"size:16" json:"suggestionStatus,omitempty"`
 	FailReason     string    `gorm:"size:64" json:"failReason,omitempty"`
-	FailDetail     string    `gorm:"size:256" json:"failDetail,omitempty"`
+	FailDetail     string    `gorm:"type:text" json:"failDetail,omitempty"`
 	RetryCount     int       `gorm:"default:0" json:"retryCount"`
 	Feedback       string    `gorm:"size:16" json:"feedback,omitempty"`
 	FeedbackComment string   `gorm:"size:256" json:"feedbackComment,omitempty"`
