@@ -4,11 +4,11 @@ BASE = "http://47.94.146.53:3000"
 
 def http(method, path, data=None, jwt=None):
     cmd = ["curl", "-s", "-X", method, f"{BASE}{path}"]
-    cmd += ["-H", "Content-Type: application/json"]
+    if data is not None:
+        cmd += ["-H", "Content-Type: application/json"]
+        cmd += ["-d", json.dumps(data)]
     if jwt:
         cmd += ["-H", f"Authorization: Bearer {jwt}"]
-    if data:
-        cmd += ["-d", json.dumps(data)]
     out = subprocess.run(cmd, capture_output=True, text=True)
     return json.loads(out.stdout)
 
@@ -26,8 +26,8 @@ def make_png(path):
 
 print("0. 准备测试图片...")
 make_png("/tmp/ocr_test.png")
-subprocess.run(["docker", "exec", "visionguard-backend-1", "mkdir", "-p", "/app/uploads/_test"], capture_output=True)
-subprocess.run(["docker", "cp", "/tmp/ocr_test.png", "visionguard-backend-1:/app/uploads/_test/test.png"], capture_output=True)
+subprocess.run(["docker", "exec", "visionguard-backend-1", "mkdir", "-p", "/uploads/_test"], capture_output=True)
+subprocess.run(["docker", "cp", "/tmp/ocr_test.png", "visionguard-backend-1:/uploads/_test/test.png"], capture_output=True)
 img_url = f"{BASE}/uploads/_test/test.png"
 check = subprocess.run(["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", img_url], capture_output=True, text=True)
 print(f"   图片 URL: {img_url} (HTTP {check.stdout})")
