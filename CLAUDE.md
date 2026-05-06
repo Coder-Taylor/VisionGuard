@@ -201,8 +201,11 @@ git push gitee master
 | AI | **ESP32 WiFi/服务器更新 (2026-05-06)**：固件 WiFi SSID → `wuiPhone 16`、密码 → `12345ssDLH`、BASE_URL → `http://47.94.146.53:3000`（云服务器）；cloud-deploy/hardware 同步
 | AI | **用药计划闹钟式时间选择 (2026-05-06)**：替换逗号分隔文本输入为 TimePicker 时间片（Chip + 添加/删除按钮）；M3 DatePickerDialog 替代系统 DatePickerDialog（与老人生日同款）
 | AI | **全局渐变背景 (2026-05-06)**：17 页面柔和毛玻璃渐变（上 浅米黄泛粉 #FFF5F0 → 下 纯白）；AppColors.kt 新增 Modifier.gradientBackground() 扩展函数；Scaffold containerColor 改为 Color.Transparent 透出渐变
+| AI | **OCR 硬件轮询 GET 401 修复 (2026-05-06)**：根因 Fiber 路由匹配顺序 — `/api/v1/ocr/result/:taskId`（参数路由, userAuth）注册在 `/api/v1/ocr/result/latest`（精确路由, deviceAuth）之前，Fiber 将 `latest` 当 `:taskId` 值匹配到 userAuth 中间件 → 设备 JWT 通不过用户认证 → 401。修复：精确路由移到参数路由前。同步修复 cloud-deploy。
+| AI | **drugName UTF-8 截断修复 (2026-05-06)**：豆包返回中文 drugName 时 byte-based `drugName[:20]` 切到多字节字符中间 → DB UTF-8 编码错误。改为 rune-based `[]rune(drugName)[:20]`。同步修复 cloud-deploy。
+| AI | **云端重新部署 (2026-05-06)**：旧容器名 `visionguard-*`，新 `cloud-deploy-*`，端口冲突 + volume 迁移（pgdata→visionguard_pgdata）。部署命令：`cd cloud-deploy && docker compose -f docker-compose.prod.yml up -d --build`。
 
-### 当前状态 (2026-05-06 傍晚)
+### 当前状态 (2026-05-06 深夜)
 
 - 后端全部功能编译通过（`go build ./...` 成功）
 - 总路由数：81 条（十一大业务模块，17 表 AutoMigrate）
@@ -232,6 +235,8 @@ git push gitee master
 - API 字段已对齐后端：告警类型 7 种 / 等级 4 级 / 时间线 at-action-by / GuardianInfo.nickname
 - 项目名已统一为 VisionGuard，端口统一为 3000
 - 生产服务器：`http://47.94.146.53:3000/`
+- **OCR 管线状态**：豆包 API 已接入（ep-20260506095629-bgl8v），上传→异步识别→DB 存储→硬件/APP 轮询全链路已通；测试脚本 `test_ocr.py`（Python + curl）可端到端验证；硬件轮询 GET 401 已修复（Fiber 路由顺序）
+- **云端部署**：`docker compose -f docker-compose.prod.yml up -d --build`（在 `cloud-deploy/` 目录执行，需 `.env`）；数据卷 `visionguard_pgdata`；旧容器名 `visionguard-*` 已迁移至 `cloud-deploy-*`
 
 ### Android 路由接入状态
 
@@ -249,6 +254,22 @@ go run cmd/server/main.go       # 启动后端（需先确保 PostgreSQL + Redis
 go run test_all.go              # 21 步核心流程测试
 go run test_all_full.go         # 76 步全路由覆盖测试
 bash test_e2e.sh                # 端到端模拟（硬件→后端→APP，纯 curl）
+bash test_get_401.sh            # GET 401 诊断（POST vs GET 同 JWT + deviceAuth 路由测试）
+python3 test_ocr.py             # OCR 全链路（设备认证→上传图片→豆包识别→轮询结果）
+```
+
+### 云端部署
+
+```bash
+# 服务器上（/opt/visionguard/repo/）
+cd cloud-deploy
+# 首次部署需创建 .env（可用 docker inspect visionguard-backend-1 提取旧容器环境变量）
+docker compose -f docker-compose.prod.yml up -d --build
+
+# 查看日志
+docker logs cloud-deploy-backend-1 --tail 50
+
+# 注意：数据卷名为 visionguard_pgdata（从旧 visionguard 项目迁移）
 ```
 
 ### Android 真机联调
