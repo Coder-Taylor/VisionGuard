@@ -60,7 +60,7 @@ func main() {
 	bindingH := handler.NewBindingHandler(bindingSvc)
 	alertH := handler.NewAlertHandler(alertSvc)
 	notificationH := handler.NewNotificationHandler(notificationSvc)
-	ocrH := handler.NewOcrHandler(ocrSvc, "uploads", "")
+	ocrH := handler.NewOcrHandler(ocrSvc, "uploads", cfg.PublicBaseURL)
 	locationH := handler.NewLocationHandler(locationSvc)
 	medicationH := handler.NewMedicationHandler(medicationSvc, doubaoSvc)
 
