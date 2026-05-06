@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -9,6 +10,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
+
+var ctx = context.Background()
 
 type AlertService struct {
 	db    *gorm.DB
@@ -61,6 +64,52 @@ type AlertCreateResp struct {
 }
 
 func (s *AlertService) CreateAlert(req AlertCreateReq) (*AlertCreateResp, error) {
+	// ======================== 安全校验 ========================
+
+	// 1. deviceId 不能为空
+	if req.DeviceID == "" {
+		return nil, fmt.Errorf("deviceId is required")
+	}
+
+	// 2. deviceId 必须存在于数据库（防止伪造设备刷告警）
+	var device model.Device
+	if err := s.db.Where("device_id = ?", req.DeviceID).First(&device).Error; err != nil {
+		return nil, fmt.Errorf("device not found")
+	}
+
+	// 3. 有效告警类型白名单
+	validTypes := map[string]bool{
+		"fall": true, "obstacle": true, "sos": true,
+		"heart_rate_abnormal": true, "low_battery": true,
+		"device_offline": true, "geofence": true,
+	}
+	if !validTypes[req.AlertType] {
+		return nil, fmt.Errorf("invalid alertType")
+	}
+
+	// 4. 时间戳校验（±10 分钟，防止伪造时间戳）
+	now := time.Now()
+	if req.Timestamp > 0 {
+		ts := time.Unix(req.Timestamp, 0)
+		drift := ts.Sub(now)
+		if drift < 0 {
+			drift = -drift
+		}
+		if drift > 10*time.Minute {
+			return nil, fmt.Errorf("timestamp drift too large")
+		}
+	}
+
+	// 5. Redis 频率限制：每设备每分钟最多 10 条告警
+	rateKey := fmt.Sprintf("alert_rate:%s:%d", req.DeviceID, now.Unix()/60)
+	count, _ := s.redis.Incr(ctx, rateKey).Result()
+	s.redis.Expire(ctx, rateKey, 2*time.Minute)
+	if count > 10 {
+		return nil, fmt.Errorf("rate limit exceeded")
+	}
+
+	// ======================== 业务处理 ========================
+
 	// 兼容嵌套 location 格式：从 Location 对象提取 lat/lng
 	if req.Location != nil {
 		req.LocationLat = req.Location.Lat
