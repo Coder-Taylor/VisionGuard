@@ -25,8 +25,13 @@ def make_png(path):
     def chunk(ctype, data):
         c = ctype + data
         return struct.pack('>I', len(data)) + c + struct.pack('>I', zlib.crc32(c) & 0xffffffff)
-    raw = b'\x00\xff\x00\x00'
-    ihdr = struct.pack('>IIBBBBB', 1, 1, 8, 2, 0, 0, 0)
+    w, h = 20, 20
+    raw = b''
+    for y in range(h):
+        raw += b'\x00'  # filter=none
+        for x in range(w):
+            raw += bytes([255, 0, 0])  # red pixel
+    ihdr = struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)
     png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', ihdr) + chunk(b'IDAT', zlib.compress(raw)) + chunk(b'IEND', b'')
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'wb') as f: f.write(png)
@@ -88,10 +93,14 @@ for i in range(15):
     time.sleep(1)
     if i % 5 == 4: print(f"   {i+1}s...")
 
-# ── 4. 轮询 ──
+# ── 4. 轮询 (用 verbose 诊断 401) ──
 print("7. 查询 OCR 结果...")
 res = http("GET", f"/api/v1/ocr/result/latest?deviceId={did}", jwt=jwt)
 print(json.dumps(res, ensure_ascii=False, indent=2))
+if res.get("code") != 0:
+    print("   (GET 失败, 直接查 DB)")
+    subprocess.run(["docker","exec","visionguard-postgres-1","psql","-U","postgres","-d","visionhub","-c",
+        f"SELECT task_id,status,stage,speak_text,medicine_name,fail_reason FROM ocr_records WHERE device_id='{did}' ORDER BY created_at DESC LIMIT 1;"])
 
 # ── 5. 查 DB ──
 print("\n8. DB:")
