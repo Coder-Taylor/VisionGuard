@@ -2,9 +2,31 @@
 
 面向视障与老年群体的胸挂式智能设备系统。**硬件本地安全 + 云端数据增强 + APP 远程监护**，三端协作。
 
-> **生产环境**：`http://47.94.146.53:3000/`
-> **本地开发**：`http://localhost:3000/`
 > **Gitee 仓库**：[gitee.com/taylorchengitee/vision-guard](https://gitee.com/taylorchengitee/vision-guard)
+> **生产服务器**：`http://47.94.146.53:3000/`
+> **本地开发**：`http://localhost:3000/`
+
+### 给队友的快速指引
+
+| 你想做什么 | 去哪里 |
+|------------|--------|
+| 安装 APP 测试 | 下载 `apk/VisionGuard-v1.4.1-local.apk`（连本地）或 `cloud-deploy/android/apk/VisionGuard-v1.4.1-cloud.apk`（连云服务器） |
+| 看后端接口 | 读 `docs/业务流程与后端设计.md` |
+| 看 UI 设计规范 | 读 `docs/Android-UI设计文档.md` |
+| 烧录硬件 | 固件在 `hardware/esp32/esp32sense.ino`，对接指南在 `docs/硬件对接文档.md` |
+| 部署到云服务器 | 读 `docs/部署指南.md`，部署包在 `cloud-deploy/` |
+| 看改了啥 | 读 `docs/变更记录.md` |
+
+### 双版本说明
+
+项目存在两份 Android 源码，**代码基本一致，仅 BASE_URL 不同**：
+
+| 版本 | 源码位置 | BASE_URL | APK 位置 |
+|------|----------|----------|----------|
+| **本地开发版** | `app/`（项目根目录） | `http://127.0.0.1:3000/` | `apk/VisionGuard-v1.4.1-local.apk` |
+| **云版** | `cloud-deploy/android/` | `http://47.94.146.53:3000/` | `cloud-deploy/android/apk/VisionGuard-v1.4.1-cloud.apk` |
+
+> 修改 Android 代码时需同步两份源码，确保 `cloud-deploy/android/.../RetrofitClient.kt` 的 BASE_URL 不被覆盖。
 
 ---
 
