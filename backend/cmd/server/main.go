@@ -164,12 +164,12 @@ func main() {
 	app.Post("/api/v1/ocr/image", userAuth, ocrH.UploadImage)               // 60. 九.1  Android JSON/base64
 	app.Post("/api/v1/device/ocr/image", deviceAuth, ocrH.UploadImage)      // 60b.     硬件 JSON/JPEG (设备JWT)
 	app.Post("/api/v1/ocr/recognize", userAuth, ocrH.CreateOcrTask)         // 61. 九.2
-	app.Get("/api/v1/ocr/result/:taskId", userAuth, ocrH.GetOcrResult)      // 62. 九.3
-	app.Get("/api/v1/ocr/poll/:taskId", userAuth, ocrH.PollTask)            // 63. 九.8
-	app.Post("/api/v1/ocr/suggestion", userAuth, ocrH.GenerateSuggestion)   // 64. 九.5
-	app.Post("/api/v1/ocr/feedback", userAuth, ocrH.RecordFeedback)         // 65. 九.6
-	app.Get("/api/v1/ocr/records", userAuth, ocrH.ListRecords)              // 66. 九.7
-	app.Get("/api/v1/ocr/result/latest", deviceAuth, ocrH.GetLatestResult)   // 67. 九.9 硬件轮询
+	app.Get("/api/v1/ocr/result/latest", deviceAuth, ocrH.GetLatestResult)  // 62. 九.9 硬件轮询（精确路由必须在 :taskId 前）
+	app.Get("/api/v1/ocr/result/:taskId", userAuth, ocrH.GetOcrResult)      // 63. 九.3
+	app.Get("/api/v1/ocr/poll/:taskId", userAuth, ocrH.PollTask)            // 64. 九.8
+	app.Post("/api/v1/ocr/suggestion", userAuth, ocrH.GenerateSuggestion)   // 65. 九.5
+	app.Post("/api/v1/ocr/feedback", userAuth, ocrH.RecordFeedback)         // 66. 九.6
+	app.Get("/api/v1/ocr/records", userAuth, ocrH.ListRecords)              // 67. 九.7
 
 	// ---- 十、消息推送与通知（8 路由：68.-75.）----
 	app.Get("/api/v1/notifications", userAuth, notificationH.ListMessages)                    // 68. 十.5

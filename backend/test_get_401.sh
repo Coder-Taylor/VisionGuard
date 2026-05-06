@@ -49,7 +49,12 @@ curl -s "$BASE/api/v1/healthz"
 echo ""
 
 echo ""
-echo "=== 6. 检查后端日志 ==="
-docker logs visionguard-backend-1 --tail 10
+echo "=== 6. 测试另一个 GET + deviceAuth 路由 ==="
+echo "GET /device/status (deviceAuth):"
+curl -s -H "Authorization: Bearer $JWT" "$BASE/api/v1/device/status/$DID"
+echo ""
+
+echo "=== 7. 检查后端日志 ==="
+docker logs visionguard-backend-1 --tail 15
 echo ""
 echo "=== Done ==="

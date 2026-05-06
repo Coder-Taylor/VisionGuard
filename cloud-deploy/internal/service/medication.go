@@ -238,8 +238,8 @@ func (d *DoubaoService) RecognizeMedicine(imageURL string) (*MedicineRecognition
 	if idx := strings.IndexAny(speakText, "，。,.；;"); idx > 0 {
 		drugName = speakText[:idx]
 	}
-	if len(drugName) > 20 {
-		drugName = drugName[:20]
+	if runes := []rune(drugName); len(runes) > 20 {
+		drugName = string(runes[:20])
 	}
 
 	return &MedicineRecognitionResult{
