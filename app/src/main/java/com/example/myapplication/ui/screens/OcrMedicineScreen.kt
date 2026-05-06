@@ -15,8 +15,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -52,8 +54,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapplication.api.OcrRecordData
+import com.example.myapplication.api.OcrResultData
 import com.example.myapplication.api.RetrofitClient
 import com.example.myapplication.ui.gradientBackground
+import com.example.myapplication.ui.AlertRed
 import com.example.myapplication.ui.CardBackground
 import com.example.myapplication.ui.LightBlue
 import com.example.myapplication.ui.OfflineGray
@@ -87,6 +91,34 @@ internal fun OcrMedicineScreen(
     var isRefreshing by remember { mutableStateOf(false) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
     var showHardwareHint by remember { mutableStateOf(false) }
+
+    // Detail dialog
+    var detailTaskId by remember { mutableStateOf<String?>(null) }
+    var detailResult by remember { mutableStateOf<OcrResultData?>(null) }
+    var detailLoading by remember { mutableStateOf(false) }
+    var detailError by remember { mutableStateOf<String?>(null) }
+
+    fun fetchDetail(taskId: String) {
+        detailTaskId = taskId
+        detailResult = null
+        detailError = null
+        detailLoading = true
+        scope.launch {
+            try {
+                val resp = withContext(Dispatchers.IO) {
+                    RetrofitClient.ocrApi.getOcrResult(taskId)
+                }
+                if (resp.isSuccessful) {
+                    detailResult = resp.body()?.data
+                } else {
+                    detailError = "获取识别结果失败"
+                }
+            } catch (e: Exception) {
+                detailError = ErrorHelper.userMessage(e, "getOcrResult")
+            }
+            detailLoading = false
+        }
+    }
 
     fun loadRecords() {
         scope.launch {
@@ -133,6 +165,48 @@ internal fun OcrMedicineScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showHardwareHint = false }) { Text("知道了", color = PrimaryBlue) }
+            },
+        )
+    }
+
+    // Detail dialog
+    if (detailTaskId != null) {
+        AlertDialog(
+            onDismissRequest = { detailTaskId = null },
+            title = { Text("识别结果", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                ) {
+                    if (detailLoading) {
+                        Text("加载中…", fontSize = 14.sp, color = TextSecondary)
+                    } else if (detailError != null) {
+                        Text(detailError!!, fontSize = 14.sp, color = AlertRed)
+                    } else {
+                        detailResult?.let { r ->
+                            DetailRow("药品名称", r.medicineName ?: "-")
+                            DetailRow("规格", r.medicineSpec ?: "-")
+                            DetailRow("用法用量", r.medicineUsage ?: "-")
+                            DetailRow("每次剂量", r.medicineDosage ?: "-")
+                            DetailRow("禁忌症", r.medicineContraindications.let { if (it.isNullOrBlank()) "无" else it })
+                            r.ocrText?.let {
+                                DetailRow("OCR 原文", it)
+                            }
+                            r.confidence?.let {
+                                DetailRow("置信度", "${"%.0f".format(it * 100)}%")
+                            }
+                            r.suggestion?.let {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text("用药建议", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                                Text(it, fontSize = 13.sp, color = TextSecondary)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { detailTaskId = null }) { Text("关闭", color = PrimaryBlue) }
             },
         )
     }
@@ -238,7 +312,9 @@ internal fun OcrMedicineScreen(
                     items(records.size) { index ->
                         val r = records[index]
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                r.taskId?.let { fetchDetail(it) }
+                            },
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(containerColor = White),
                             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -295,6 +371,15 @@ private fun FlowStep(num: String, desc: String) {
         ) { Text(num, color = White, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
         Spacer(modifier = Modifier.width(8.dp))
         Text(desc, fontSize = 14.sp, color = TextPrimary)
+    }
+}
+
+@Composable
+private fun DetailRow(label: String, value: String) {
+    Column {
+        Text(label, fontSize = 12.sp, color = TextSecondary)
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(value, fontSize = 14.sp, color = TextPrimary)
     }
 }
 

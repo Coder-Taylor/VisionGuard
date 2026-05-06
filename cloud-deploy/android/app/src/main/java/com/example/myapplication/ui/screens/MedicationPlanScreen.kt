@@ -16,11 +16,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Medication
@@ -39,6 +42,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -268,7 +272,10 @@ internal fun MedicationPlanScreen(
             onDismissRequest = { if (!isSubmitting) showCreateDialog = false },
             title = { Text("创建用药计划", fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                ) {
                     OutlinedTextField(
                         value = newDrugName,
                         onValueChange = { newDrugName = it },
@@ -356,30 +363,50 @@ internal fun MedicationPlanScreen(
 
                     // 日期选择
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlinedTextField(
-                            value = newStartDate,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("开始日期") },
-                            placeholder = { Text("点击选择") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f).clickable {
-                                showStartDatePicker = true
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                        )
-                        OutlinedTextField(
-                            value = newEndDate,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("结束日期(可选)") },
-                            placeholder = { Text("点击选择") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f).clickable {
-                                showEndDatePicker = true
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                        )
+                        Box(modifier = Modifier.weight(1f).clickable { showStartDatePicker = true }) {
+                            OutlinedTextField(
+                                value = newStartDate,
+                                onValueChange = {},
+                                readOnly = true,
+                                enabled = false,
+                                label = { Text("开始日期") },
+                                placeholder = { Text("点击选择") },
+                                singleLine = true,
+                                trailingIcon = {
+                                    Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = PrimaryBlue)
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                                    disabledTextColor = TextPrimary,
+                                    disabledBorderColor = PrimaryBlue.copy(alpha = 0.5f),
+                                    disabledLabelColor = PrimaryBlue,
+                                    disabledTrailingIconColor = PrimaryBlue,
+                                ),
+                            )
+                        }
+                        Box(modifier = Modifier.weight(1f).clickable { showEndDatePicker = true }) {
+                            OutlinedTextField(
+                                value = newEndDate,
+                                onValueChange = {},
+                                readOnly = true,
+                                enabled = false,
+                                label = { Text("结束日期(可选)") },
+                                placeholder = { Text("点击选择") },
+                                singleLine = true,
+                                trailingIcon = {
+                                    Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = PrimaryBlue)
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                                    disabledTextColor = TextPrimary,
+                                    disabledBorderColor = PrimaryBlue.copy(alpha = 0.5f),
+                                    disabledLabelColor = PrimaryBlue,
+                                    disabledTrailingIconColor = PrimaryBlue,
+                                ),
+                            )
+                        }
                     }
                     OutlinedTextField(
                         value = newNotes,

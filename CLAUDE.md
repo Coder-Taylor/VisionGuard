@@ -31,6 +31,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 > 2. 本地版 `RetrofitClient.kt` 永远用 `127.0.0.1:3000`，云版永远用 `47.94.146.53:3000`
 > 3. sync 文件时**先确认 cloud-deploy 的 BASE_URL 没被覆盖**，如果被覆盖了立即改回来
 > 4. 构建分发 APK 必须从 `cloud-deploy/android/` 构建，构建本地测试 APK 从根目录 `app/` 构建
+> 5. **默认装云版**：没有特殊说明时，安装到手机的 APK 必须是云版（`cloud-deploy/android/` 构建），BASE_URL 指向 `47.94.146.53:3000`
 
 ### 同步检查清单
 
