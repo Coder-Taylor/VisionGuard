@@ -61,6 +61,23 @@ git push gitee master
 > 2. git add 时排除 cloud-deploy 的 build 产物（Windows 文件名过长限制）
 > 3. 提交信息用中文，格式：`feat: xxx` / `fix: xxx` / `docs: xxx`
 
+### Docker 中国网络铁律
+
+**任何 Dockerfile 必须在 `COPY go.mod` 前加 `ENV GOPROXY=https://goproxy.cn,direct`**。
+
+> **原因**：国内服务器（阿里云等）无法访问 `proxy.golang.org`，go mod download 必定超时。已两次踩坑（2026-05-05、2026-05-06）。
+>
+> **正确写法**：
+> ```dockerfile
+> FROM golang:1.23-alpine AS builder
+> WORKDIR /app
+> ENV GOPROXY=https://goproxy.cn,direct
+> COPY go.mod go.sum ./
+> RUN go mod download
+> ```
+>
+> **影响的文件**：`backend/Dockerfile`、`cloud-deploy/Dockerfile`（两个都要改，保持一致）
+
 ---
 
 ## Session state (2026-05-06 傍晚)
