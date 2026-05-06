@@ -21,9 +21,9 @@ replay_pid*.log
 # Kotlin error logs
 .kotlin/
 
-# APK builds
-apk/
-*.apk
+# APK builds (only ignore build output dirs, keep release APKs)
+app/build/
+cloud-deploy/android/app/build/
 
 # Keystore files (never commit)
 *.keystore
