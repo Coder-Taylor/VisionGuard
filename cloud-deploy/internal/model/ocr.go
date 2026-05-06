@@ -18,6 +18,7 @@ type OcrRecord struct {
 	Language       string    `gorm:"size:8;default:zh" json:"language"`
 	OCRText        string    `gorm:"type:text" json:"ocrText,omitempty"`
 	Confidence     float64   `json:"confidence,omitempty"`
+	SpeakText      string    `gorm:"type:text" json:"speakText,omitempty"`
 	MedicineName   string    `gorm:"size:128" json:"medicineName,omitempty"`
 	GenericName    string    `gorm:"size:128" json:"genericName,omitempty"`
 	Specification  string    `gorm:"size:64" json:"specification,omitempty"`

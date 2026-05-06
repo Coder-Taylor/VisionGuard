@@ -13,9 +13,9 @@ import (
 )
 
 type OcrHandler struct {
-	svc         *service.OcrService
-	uploadDir   string
-	baseURL     string
+	svc       *service.OcrService
+	uploadDir string
+	baseURL   string
 }
 
 func NewOcrHandler(svc *service.OcrService, uploadDir, baseURL string) *OcrHandler {
@@ -25,14 +25,13 @@ func NewOcrHandler(svc *service.OcrService, uploadDir, baseURL string) *OcrHandl
 	return &OcrHandler{svc: svc, uploadDir: uploadDir, baseURL: baseURL}
 }
 
-// POST /api/v1/ocr/image  (九.1)
+// POST /api/v1/ocr/image
 // 支持两种模式:
-//   - multipart/form-data: 硬件直传 JPEG 二进制 (Content-Type: multipart/form-data, field: "image")
-//   - application/json:     Android base64 data URL (fileUrl 字段)
+//   - multipart/form-data: 硬件直传 JPEG 二进制
+//   - application/json:     Android base64 data URL
 func (h *OcrHandler) UploadImage(c *fiber.Ctx) error {
 	contentType := c.Get("Content-Type")
 
-	// ── 模式一: multipart 二进制上传 (硬件 JPEG) ──
 	if strings.HasPrefix(contentType, "multipart/form-data") {
 		file, err := c.FormFile("image")
 		if err != nil {
@@ -49,7 +48,6 @@ func (h *OcrHandler) UploadImage(c *fiber.Ctx) error {
 		}
 		defer src.Close()
 
-		// 按设备分目录
 		deviceDir := filepath.Join(h.uploadDir, deviceID, "images")
 		if err := os.MkdirAll(deviceDir, 0755); err != nil {
 			return c.Status(500).JSON(fiber.Map{"code": 500, "message": "cannot create upload directory"})
@@ -72,7 +70,6 @@ func (h *OcrHandler) UploadImage(c *fiber.Ctx) error {
 			return c.Status(500).JSON(fiber.Map{"code": 500, "message": "write file error"})
 		}
 
-		// 构造访问 URL (相对于服务器根路径)
 		fileURL := fmt.Sprintf("%s/%s/%s/images/%s", h.baseURL, h.uploadDir, deviceID, savedName)
 		if h.baseURL == "" {
 			fileURL = fmt.Sprintf("/%s/%s/images/%s", h.uploadDir, deviceID, savedName)
@@ -94,7 +91,6 @@ func (h *OcrHandler) UploadImage(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"code": 0, "message": "image uploaded", "data": resp})
 	}
 
-	// ── 模式二: JSON 上传 (Android base64 data URL) ──
 	var req service.ImageUploadReq
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": "invalid request"})
@@ -107,7 +103,7 @@ func (h *OcrHandler) UploadImage(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"code": 0, "message": "image uploaded", "data": resp})
 }
 
-// POST /api/v1/ocr/recognize  (九.2)
+// POST /api/v1/ocr/recognize
 func (h *OcrHandler) CreateOcrTask(c *fiber.Ctx) error {
 	var req struct {
 		ImageID  string `json:"imageId"`
@@ -127,7 +123,7 @@ func (h *OcrHandler) CreateOcrTask(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"code": 0, "message": "ocr task created", "data": data})
 }
 
-// GET /api/v1/ocr/result/:taskId  (九.3)
+// GET /api/v1/ocr/result/:taskId
 func (h *OcrHandler) GetOcrResult(c *fiber.Ctx) error {
 	taskID := c.Params("taskId")
 	data, err := h.svc.GetOcrResult(taskID)
@@ -137,7 +133,7 @@ func (h *OcrHandler) GetOcrResult(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"code": 0, "data": data})
 }
 
-// GET /api/v1/ocr/poll/:taskId  (九.8)
+// GET /api/v1/ocr/poll/:taskId
 func (h *OcrHandler) PollTask(c *fiber.Ctx) error {
 	taskID := c.Params("taskId")
 	data, err := h.svc.PollTask(taskID)
@@ -147,7 +143,7 @@ func (h *OcrHandler) PollTask(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"code": 0, "data": data})
 }
 
-// POST /api/v1/ocr/suggestion  (九.5)
+// POST /api/v1/ocr/suggestion
 func (h *OcrHandler) GenerateSuggestion(c *fiber.Ctx) error {
 	var req struct {
 		ImageID string `json:"imageId"`
@@ -164,7 +160,7 @@ func (h *OcrHandler) GenerateSuggestion(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"code": 0, "message": "suggestion generation started", "data": data})
 }
 
-// POST /api/v1/ocr/feedback  (九.6)
+// POST /api/v1/ocr/feedback
 func (h *OcrHandler) RecordFeedback(c *fiber.Ctx) error {
 	var req struct {
 		ImageID      string `json:"imageId"`
@@ -182,7 +178,7 @@ func (h *OcrHandler) RecordFeedback(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"code": 0, "message": "feedback recorded"})
 }
 
-// GET /api/v1/ocr/result/latest  (硬件轮询最新识别结果)
+// GET /api/v1/ocr/result/latest — 硬件轮询最新识别结果（返回纯文本播报）
 func (h *OcrHandler) GetLatestResult(c *fiber.Ctx) error {
 	deviceID := c.Query("deviceId")
 	if deviceID == "" {
@@ -193,18 +189,14 @@ func (h *OcrHandler) GetLatestResult(c *fiber.Ctx) error {
 		return c.Status(404).JSON(fiber.Map{"code": 404, "message": "no completed result yet"})
 	}
 	return c.JSON(fiber.Map{"code": 0, "data": fiber.Map{
-		"taskId":        record.TaskID,
-		"ocrText":       record.OCRText,
-		"confidence":    record.Confidence,
-		"medicineName":  record.MedicineName,
-		"specification": record.Specification,
-		"indications":   record.Indications,
-		"dosage":        record.Dosage,
-		"riskLevel":     record.RiskLevel,
+		"taskId":       record.TaskID,
+		"speakText":    record.SpeakText,
+		"medicineName": record.MedicineName,
+		"createdAt":    record.CreatedAt.Format(time.RFC3339),
 	}})
 }
 
-// GET /api/v1/ocr/records  (九.7)
+// GET /api/v1/ocr/records
 func (h *OcrHandler) ListRecords(c *fiber.Ctx) error {
 	elderID := c.Query("elderId")
 	page := c.QueryInt("page", 1)
