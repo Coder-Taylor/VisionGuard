@@ -10,7 +10,7 @@
 
 | 你想做什么 | 去哪里 |
 |------------|--------|
-| 安装 APP 测试 | 下载 `apk/VisionGuard-v1.4.1-local.apk`（连本地）或 `cloud-deploy/android/apk/VisionGuard-v1.4.1-cloud.apk`（连云服务器） |
+| 安装 APP 测试 | 下载 `apk/VisionGuard-v1.4-cloud.apk`（连本地）或 `cloud-deploy/android/apk/VisionGuard-v1.4-cloud.apk`（连云服务器） |
 | 看后端接口 | 读 `docs/业务流程与后端设计.md` |
 | 看 UI 设计规范 | 读 `docs/Android-UI设计文档.md` |
 | 烧录硬件 | 固件在 `hardware/esp32/esp32sense.ino`，对接指南在 `docs/硬件对接文档.md` |
@@ -23,8 +23,8 @@
 
 | 版本 | 源码位置 | BASE_URL | APK 位置 |
 |------|----------|----------|----------|
-| **本地开发版** | `app/`（项目根目录） | `http://127.0.0.1:3000/` | `apk/VisionGuard-v1.4.1-local.apk` |
-| **云版** | `cloud-deploy/android/` | `http://47.94.146.53:3000/` | `cloud-deploy/android/apk/VisionGuard-v1.4.1-cloud.apk` |
+| **本地开发版** | `app/`（项目根目录） | `http://127.0.0.1:3000/` | `apk/VisionGuard-v1.4-cloud.apk` |
+| **云版** | `cloud-deploy/android/` | `http://47.94.146.53:3000/` | `cloud-deploy/android/apk/VisionGuard-v1.4-cloud.apk` |
 
 > 修改 Android 代码时需同步两份源码，确保 `cloud-deploy/android/.../RetrofitClient.kt` 的 BASE_URL 不被覆盖。
 
@@ -373,12 +373,13 @@ vision-hub/                          # ★ Gitee: gitee.com/taylorchengitee/visi
 │   ├── esp32/esp32sense.ino        # ★ ESP32 固件（WiFi: wuiPhone 16, 指向云服务器）
 │   └── k210/                       # K210 AI 视觉（main.py + detect.kmodel）
 │
-├── cloud-deploy/                   # 🚀 云服务器部署包（完整三端源码 + 云版 APK）
-│   ├── android/apk/
-│   │   └── VisionGuard-v1.4.1-cloud.apk  # ★ 云版 (47.94.146.53:3000)
-│   ├── android/                    #    Android 源码副本（BASE_URL 指向云）
-│   ├── backend/                    #    Go 后端源码副本
-│   ├── hardware/                   #    硬件固件副本
+├── cloud-deploy/                   # 🚀 云服务器部署包（后端源码 + Docker + 三端完整交付）
+│   ├── cmd/server/main.go          #    入口（81 路由，17 表 AutoMigrate）
+│   ├── internal/                   #    Go 后端源码（与 backend/ 同步）
+│   ├── Dockerfile + docker-compose.prod.yml + .env.example
+│   ├── android/
+│   │   └── apk/VisionGuard-v1.4-cloud.apk  # ★ 云版 (47.94.146.53:3000)
+│   └── hardware/                   #    硬件固件副本
 │   └── Dockerfile                  #    Docker 生产部署
 │
 ├── docs/                           # 📚 文档（13 份）
@@ -580,6 +581,7 @@ curl http://localhost:3000/api/v1/healthz
 go run test_all.go            # 21 步核心流程
 go run test_all_full.go       # 76 步全路由覆盖
 bash test_e2e.sh              # 端到端模拟（硬件→后端→APP）
+python3 test_ocr.py           # OCR 全链路（设备认证→上传→豆包识别→轮询）
 ```
 
 ### Android 真机联调
@@ -764,18 +766,22 @@ echo -e "\n=== 全部 6 步完成 ==="
 > **前提**：服务器安装 Docker，代码已 push 并 pull 到服务器
 
 ```bash
-cd backend
-cp .env.example .env
+cd cloud-deploy
+
+# 创建 .env（从旧容器提取或从 .env.example 复制）
+docker inspect visionguard-backend-1 --format '{{range .Config.Env}}{{println .}}{{end}}' \
+  | grep -vE '^(PATH=|TZ=)' > .env 2>/dev/null || cp .env.example .env
 
 # ⚠️ 编辑 .env，云服务器必须改的参数：
 #   SERVER_PORT=3000
 #   DB_HOST=postgres          ← Docker 容器间用服务名通信，不是 localhost！
 #   REDIS_HOST=redis          ← 同上
-#   DB_USER=visionhub         ← docker-compose.postgres 环境变量
-#   DB_PASSWORD=ff2aa51e15cc7e8e9e75c981f7af9e01   ← 已预填随机值
-#   JWT_SECRET=fabd660f3319c6532f917aa82004aa846157fd41c0b52689268c3f0fde3db99b  ← 已预填随机值
+#   DB_USER=postgres
+#   DB_PASSWORD=visionhub
+#   JWT_SECRET=fabd660f3319c6532f917aa82004aa846157fd41c0b52689268c3f0fde3db99b
 
-chmod +x deploy.sh && ./deploy.sh
+# 构建并启动（注意：docker compose，不是 docker-compose）
+docker compose -f docker-compose.prod.yml up -d --build
 
 # 验证
 curl http://localhost:3000/api/v1/healthz
