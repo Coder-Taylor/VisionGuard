@@ -1,0 +1,8 @@
+## 复制此文件为 local.properties 并修改
+#
+# Location of the SDK.
+sdk.dir=C\:\\Develop\\Android\\Sdk
+
+# 高德地图 API Key — 在 https://console.amap.com/ 申请
+# 需要填入 SHA1 指纹 + 包名 com.example.myapplication
+AMAP_API_KEY=your_amap_key_here
