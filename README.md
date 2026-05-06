@@ -331,50 +331,42 @@ XOR 0x4B Challenge-Response → 设备 JWT (24h 有效)
 ## 八、项目结构
 
 ```
-vision-hub/
-├── apk/                            # APK 安装包（4 个版本）
-│   ├── VisionGuard-v1.3.3.apk      # ★ 最新 AI 构建版本（全局下拉刷新）
-│   ├── VisionGuard-v1.3.apk        # v1.3 版本
-│   ├── vision-hub-v1.2.0.apk       # 团队构建版本
-│   ├── VisionGuard-v1.1.apk        # 旧 AI 构建版本
-│   └── VisionGuard-v1.0.apk        # 初版
-├── app/                            # Android 监护端（Kotlin + Compose）
-├── backend/                        # Go 云端服务
-│   ├── cmd/server/main.go          # 入口（16 AutoMigrate + 77 路由注册）
-│   ├── internal/
-│   │   ├── config/config.go        # .env 配置加载
-│   │   ├── infra/                  # PostgreSQL + Redis 连接
-│   │   ├── model/                  # 16 个 GORM 模型（json tag camelCase）
-│   │   ├── handler/                # 8 个 HTTP 处理器（薄层，参数绑定→调 service）
-│   │   ├── service/                # 8 个业务逻辑（厚层，核心逻辑在此）
-│   │   └── middleware/auth.go      # UserAuth + DeviceAuth
-│   ├── test_all.go                 # 21 步核心流程测试
-│   ├── test_all_full.go            # 76 步全路由覆盖测试
-│   ├── Dockerfile                  # 多阶段构建（~20MB）
-│   ├── docker-compose.yml          # 本地开发环境
-│   ├── docker-compose.prod.yml     # 生产环境（PG+Redis+Backend）
-│   ├── deploy.sh                   # 一键部署脚本
-│   └── .env.example                # 环境变量模板
-├── hardware/                       # 硬件固件
-│   ├── README.md                   # 硬件架构说明（旧）
-│   ├── esp32/esp32sense.ino        # ★ 硬件团队最新 ESP32 固件（已对齐 v1 API）
-│   ├── esp32/wordmap.h             # 中文汉字语音库映射表
-│   ├── k210/main.py                # K210 AI 视觉代码
-│   ├── k210/detect.kmodel          # K210 障碍物检测模型
-│   └── sketch_apr23a.ino           # 旧 ESP32 固件（存档）
-├── docs/                           # 文档（12 份）
-│   ├── 部署指南.md                  # ★ 生产部署：Docker+改IP+全链路验证
-│   ├── 硬件对接文档.md              # 硬件 ESP32 对接指南
-│   ├── 业务流程与后端设计.md         # 77 路由 + 业务流 + DB + 安全 + 部署
-│   ├── 产品需求说明书.md            # 完整产品需求
-│   ├── 安卓说明文档.md              # 三端边界 + P0/P1 功能模块
-│   ├── Android-UI设计文档.md        # UI 设计规范 + 页面结构
-│   ├── api.md                      # 旧版 6 接口文档（存档）
-│   ├── 业务设计 (1).md             # 原始设计文档（存档）
-│   ├── 代码审查清单.md              # 5 阶段 61 检查点
-│   ├── 数据流模拟.md               # 端到端数据流
-│   ├── 开发日志.md                 # 完整开发记录
-│   └── 变更记录.md                 # 版本变更
+vision-hub/                          # ★ Gitee: gitee.com/taylorchengitee/vision-guard
+│
+├── apk/                            # 📱 发布 APK（直接安装）
+│   └── VisionGuard-v1.4.1-local.apk # ★ 本地版 (127.0.0.1:3000)
+│
+├── app/                            # 🤖 Android 监护端（Kotlin + Compose, 18 页面）
+│   └── src/main/java/.../ui/screens/
+│
+├── backend/                        # ☁️ Go 云端服务（Fiber + GORM + PostgreSQL + Redis）
+│   ├── cmd/server/main.go          # 入口（17 表 AutoMigrate + 81 路由）
+│   ├── internal/handler/           # 10 个 HTTP 处理器
+│   ├── internal/service/           # 8 个业务逻辑层
+│   ├── internal/model/             # 17 个 GORM 模型
+│   ├── internal/middleware/        # JWT 认证中间件
+│   └── test_all_full.go            # 76 步全路由测试
+│
+├── hardware/                       # 🔧 硬件固件
+│   ├── esp32/esp32sense.ino        # ★ ESP32 固件（WiFi: wuiPhone 16, 指向云服务器）
+│   └── k210/                       # K210 AI 视觉（main.py + detect.kmodel）
+│
+├── cloud-deploy/                   # 🚀 云服务器部署包（完整三端源码 + 云版 APK）
+│   ├── android/apk/
+│   │   └── VisionGuard-v1.4.1-cloud.apk  # ★ 云版 (47.94.146.53:3000)
+│   ├── android/                    #    Android 源码副本（BASE_URL 指向云）
+│   ├── backend/                    #    Go 后端源码副本
+│   ├── hardware/                   #    硬件固件副本
+│   └── Dockerfile                  #    Docker 生产部署
+│
+├── docs/                           # 📚 文档（13 份）
+│   ├── 部署指南.md                  # ★ 生产部署步骤
+│   ├── 硬件对接文档.md              # ESP32 对接指南
+│   ├── 业务流程与后端设计.md         # 81 路由 + 17 表 + 架构
+│   ├── 变更记录.md                 # 版本变更历史
+│   └── ...
+│
+├── CLAUDE.md                       # AI 开发指引
 └── README.md                       # 本文件
 ```
 
