@@ -1,15 +1,46 @@
 *.iml
 .gradle
 /local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+/.idea/
 .DS_Store
 /build
 /captures
 .externalNativeBuild
 .cxx
 local.properties
+
+# JVM crash logs
+hs_err_pid*.log
+replay_pid*.log
+
+# Temp & backup files
+*.tmp
+*~
+*.zip
+
+# Kotlin error logs
+.kotlin/
+
+# APK builds
+apk/
+*.apk
+
+# Keystore files (never commit)
+*.keystore
+*.jks
+
+# Go backend
+backend/.env
+cloud-deploy/.env
+_credentials.md
+backend/*.exe
+backend/tmp/
+
+# Claude Code local settings
+.claude/
+
+# Cloud deploy build artifacts
+cloud-deploy/android/app/build/
+cloud-deploy/android/.gradle/
+cloud-deploy/android/build/
+cloud-deploy/android/local.properties

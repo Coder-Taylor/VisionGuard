@@ -15,7 +15,34 @@ This file provides guidance to Claude Code when working with code in this reposi
 - 比赛中项目（计算机设计大赛），校赛 2026-04-14，省赛待定
 - 用中文交流，技术解释给代码+Java 类比
 
-## Session state (2026-05-06)
+## ⚠️ 重要规则（每次改动必须遵守）
+
+### 双版本 BASE_URL 铁律
+
+项目存在**两份源码**，BASE_URL **绝对不能混淆**：
+
+| 版本 | 路径 | BASE_URL |
+|------|------|----------|
+| **本地开发版** | `app/`（项目根目录） | `http://127.0.0.1:3000/` |
+| **云版/分发版** | `cloud-deploy/android/` | `http://47.94.146.53:3000/` |
+
+> **规则**：
+> 1. 每次修改 Android 代码，**必须同时更新两份源码**
+> 2. 本地版 `RetrofitClient.kt` 永远用 `127.0.0.1:3000`，云版永远用 `47.94.146.53:3000`
+> 3. sync 文件时**先确认 cloud-deploy 的 BASE_URL 没被覆盖**，如果被覆盖了立即改回来
+> 4. 构建分发 APK 必须从 `cloud-deploy/android/` 构建，构建本地测试 APK 从根目录 `app/` 构建
+
+### 同步检查清单
+
+每次改动后同步到 cloud-deploy 时，**必须验证**：
+- [ ] `cloud-deploy/android/.../RetrofitClient.kt` BASE_URL 仍是云地址
+- [ ] `cloud-deploy/android/app/build.gradle.kts` minSdk = 31
+- [ ] 新增文件已在 cloud-deploy 中存在
+- [ ] 后端 Go 文件已同步（如果改了后端）
+
+---
+
+## Session state (2026-05-06 傍晚)
 
 ### 项目信息
 
@@ -23,6 +50,9 @@ This file provides guidance to Claude Code when working with code in this reposi
 - **生产服务器**：`http://47.94.146.53:3000/`
 - **本地开发**：`http://localhost:3000/`
 - **端口**：统一 3000
+- **豆包 API Key**：`ark-632ca022-46e7-4e0d-ae10-fc2cd9e1a2fa-21961`（已写入 .env）
+- **硬件 WiFi**：SSID `wuiPhone 16`，密码 `12345ssDLH`
+- **Gitee 仓库**：https://gitee.com/taylorchengitee/vision-guard
 - **硬件团队最新代码**：`hardware/esp32/esp32sense.ino`（已对齐 v1 API）+ `hardware/k210/main.py`
 
 ### 已完成的工作
@@ -94,11 +124,35 @@ This file provides guidance to Claude Code when working with code in this reposi
 | AI | **HomeScreen 告警操作修复 (2026-05-06)**：① `isAlert` 改为 `pendingAlerts.isNotEmpty()`（忽视后状态栏变绿）；② 忽视时同步从 `recentAlerts` 移除 + 递减 `alertCount24h`；③ 新增"一键忽视"按钮（`pendingAlerts.size > 1` 时显示，批量确认全部待处理告警） |
 | AI | **AlertDetailScreen 导航修复 (2026-05-06)**：确认/解决/关闭告警后自动调用 `onBack()` 返回上一页，不再停留在详情页 |
 | AI | **定位 elderId 查询修复 (2026-05-06)**：后端 `GetLatestLocation`/`GetTrajectory`/`GetRunningData` 支持仅传 `elderId`（无 `deviceId`）时自动从 bindings 表解析 `deviceId`，解决 Android 只传 `elderId` 导致 Redis key 查找失败的问题 |
+| AI | **忽视 API 字段名修复 (2026-05-06)**：根因 `UpdateAlertStatusReq(status)` → 改 `action` 字段对齐后端 `json:"action"`；后端 switch-case 同时接受 `confirm/confirmed` 等；新增独立 `dismissScope` 防止切 Tab 取消协程；`rememberSaveable` 跨页面记住已忽视 ID |
+| AI | **地图初始化修复 (2026-05-06)**：AMap 3D SDK 10.x 新增 `MapsInitializer.updatePrivacyShow/Agree` 隐私合规初始化；图例从右下移到左上避免挡住缩放按钮；开启 `isZoomGesturesEnabled` |
+| AI | **硬件代码更新 (2026-05-06)**：硬件团队最新 ESP32 固件 `hardware1test.zip` → 已整合到 `hardware/esp32/esp32sense.ino` + `wordmap.h` + `k210/detect.kmodel` + `k210/main.py`，SN_TEST_003→SN_TEST_005 |
+| AI | **cloud-deploy 完整交付包 (2026-05-06)**：重组织 cloud-deploy 为三端完整交付目录 — ① 后端 Go 源码（internal/cmd/config/migrations + Docker）② Android 完整源码（18 页面 Kotlin + Compose + Gradle）③ 硬件固件源码（ESP32 + K210）④ 预构建云版 APK（android/apk/VisionGuard-v1.4-cloud.apk，已签名，118MB，BASE_URL 指向 47.94.146.53:3000）。本地版 APK 在项目根目录。含中英文 README。
+| AI | **CompactTopBar 标题栏修复 (2026-05-06)**：7 页面 TopAppBar 从 M3 默认 64dp → CompactTopBar 48dp（Location/DeviceManagement/ElderManagement/ElderDetail/NotificationList/OcrMedicine/UserSettings），统一 PrimaryBlue 背景 + ArrowBack + 可选 actions
+| AI | **NetworkMonitor 离线检测 (2026-05-06)**：新增 `NetworkMonitor` object，`ConnectivityManager.NetworkCallback` 实时追踪网络状态，`isOnline()` 供全局查询。`MainActivity.onCreate()` 调用 `NetworkMonitor.init(this)`
+| AI | **ErrorHelper 离线提示 (2026-05-06)**：`ErrorHelper.userMessage()` 优先查 `NetworkMonitor.isOnline()`，设备无网络时返回"当前处于离线状态，请检查手机网络"，无需 Context 参数
+| AI | **通知中心修复 (2026-05-06)**：后端 notification service 响应字段 `messages`→`list`（对齐 Android PaginatedData）；MsgItem 新增 `priority` 字段；Android NotificationApi `@Query("read")`→`@Query("readStatus")`
+| AI | **ProfileScreen 未读角标 (2026-05-06)**：ProfileScreen 消息通知入口新增 `UnreadBadge`（呼吸动效），LaunchedEffect 启动时获取未读计数
+| AI | **OCR 后端二进制上传 (2026-05-06)**：`handler/ocr.go` UploadImage 支持双模式 — multipart/form-data（硬件 JPEG 二进制，按 deviceId 分目录存储）+ application/json（Android base64 data URL）；`main.go` 新增 `app.Static("/uploads", "./uploads")` 静态文件服务
+| AI | **cloud-deploy 全量同步 + APK 构建 (2026-05-06)**：将 CompactTopBar/NetworkMonitor/ErrorHelper/通知修复/OCR multipart 等全部改动同步至 cloud-deploy；构建 VisionGuard-v1.4-cloud.apk（118MB）并 ADB 安装到手机
+| AI | **CompactTopBar 文字裁剪修复 (2026-05-06)**：M3 TopAppBar 强制 48dp 导致文字被内部 padding 遮挡 → 改用自定义 Row（48dp + PrimaryBlue 背景 + IconButton + Text weight(1f)），去掉 TopAppBar/TopAppBarDefaults/ExperimentalMaterial3Api 依赖
+| AI | **用药计划后端 (2026-05-06)**：新增 `model.MedicationPlan`（药品/剂量/频次/JSON schedule/起止日期/状态）+ `MedicationService` CRUD + `MedicationHandler` 6 路由（监护人创建/列表/更新/删除 + 硬件轮询 + 豆包识别）+ `GET /api/v1/device/:deviceId/pending-messages` 硬件轮询（±3min 用药提醒 + 5min 内 OCR 结果）；`app.Static` 静态文件服务
+| AI | **豆包 API 占位 (2026-05-06)**：`config.go` 新增 `DOUBAO_API_KEY`/`DOUBAO_API_URL`（默认 ark.cn-beijing.volces.com）；`DoubaoService.RecognizeMedicine` 占位（注释包含真实调用格式）；`MockRecognizeMedicine` 基于 OCR 文字关键词模拟识别；`.env.example` 新增豆包配置项
+| AI | **硬件 OCR 接口完善 (2026-05-06)**：新增 `GET /api/v1/ocr/result/latest`（deviceAuth，硬件轮询最新识别结果，按 deviceId 查最近 completed 记录）；新增 `POST /api/v1/device/ocr/image`（deviceAuth，硬件 JPEG 上传备选路由）；`OcrService.GetLatestResult` 查询方法
+| AI | **后端路由扩展 (2026-05-06)**：74→81 条路由（+9 OCR +7 用药 - 去重），十一大业务模块（新增"用药计划与管理"），16→17 表（+MedicationPlan）
+| AI | **豆包 API 正式接入 (2026-05-06)**：OC​R 管线完全替换为豆包 — UploadImage 后异步调用 DoubaoService.RecognizeMedicine（doubao-seed-1.6-vision）；OcrService 依赖 DoubaoService；移除 mockOCR；豆包 Prompt 标准化输出（drugName/specification/indication/usage/warnings/riskLevel/confidence）；.env 填入真实 API Key `ark-632c...`
+| AI | **OCR 响应字段对齐 Android (2026-05-06)**：后端 ListRecords 返回 `list`（对齐 PaginatedData）+ 新增 taskId/ocrText 字段；GetOcrResult 返回 medicineName/dosage/contraindications 等标准化豆包字段
+| AI | **并发写入保护 (2026-05-06)**：新增 `internal/infra/lock.go` Redis 分布式锁（SET NX EX + Lua 脚本安全释放）+ `WithLock` 辅助函数
+| AI | **OC​R 管线完整重写 (2026-05-06)**：上传→豆包异步识别→存储结果→硬件/APP轮询 全链路打通；进度消息改为中文豆包阶段；cloud-deploy 全量同步 + 云版 APK 重建
+| AI | **ESP32 WiFi/服务器更新 (2026-05-06)**：固件 WiFi SSID → `wuiPhone 16`、密码 → `12345ssDLH`、BASE_URL → `http://47.94.146.53:3000`（云服务器）；cloud-deploy/hardware 同步
+| AI | **用药计划闹钟式时间选择 (2026-05-06)**：替换逗号分隔文本输入为 TimePicker 时间片（Chip + 添加/删除按钮）；M3 DatePickerDialog 替代系统 DatePickerDialog（与老人生日同款）
+| AI | **全局渐变背景 (2026-05-06)**：17 页面柔和毛玻璃渐变（上 浅米黄泛粉 #FFF5F0 → 下 纯白）；AppColors.kt 新增 Modifier.gradientBackground() 扩展函数；Scaffold containerColor 改为 Color.Transparent 透出渐变
 
-### 当前状态 (2026-05-06)
+### 当前状态 (2026-05-06 傍晚)
 
 - 后端全部功能编译通过（`go build ./...` 成功）
-- `test_all_full.go` 76 步全路由测试全部 PASS（涵盖全部 77 路由 + healthz）
+- 总路由数：81 条（十一大业务模块，17 表 AutoMigrate）
+- `test_all_full.go` 76 步全路由测试全部 PASS（涵盖全部 旧77 路由 + healthz）
 - `test_e2e.sh` 端到端模拟全部 PASS（curl 本地模拟硬件→后端→APP 全链路）
 - **Android 真机关键功能已验证**：创建老人 ✅ 修改密码 ✅ 换绑手机号 ✅ 设备绑定 ✅
 - **首页仪表盘**：设备在线数/老人数/24h告警数 ✅
@@ -113,7 +167,9 @@ This file provides guidance to Claude Code when working with code in this reposi
   - 个人：ProfileScreen（编辑昵称+4个功能入口）+ UserSettingsScreen（修改密码+手机号换绑）
   - 通知：NotificationListScreen（消息列表+全部已读）
 - Android 构建：`./gradlew :app:assembleRelease` ✅（已签名）
-- Release APK：`VisionGuard-v1.3.apk`（103MB），项目根目录，可直接分发
+- Release APK：`VisionGuard-v1.4.apk`（118MB），项目根目录（本地版，127.0.0.1:3000）；`cloud-deploy/android/apk/VisionGuard-v1.4-cloud.apk`（118MB，云版，47.94.146.53:3000）
+- cloud-deploy = 完整三端交付包：后端源码 + Android 完整源码 + 预构建 APK + 硬件固件
+- 云服务器：Dockerfile 国内需加 `ENV GOPROXY=https://goproxy.cn,direct` 解决 go mod download 超时
 - 高德地图 SDK 10.0.600 已集成，API Key 已配置（`d8fe...`，见 local.properties）
 - 全局设计规范已对齐 UI11.DOCX：#165DFF 主色 + 16dp 统一圆角
 - API 字段已对齐后端：告警类型 7 种 / 等级 4 级 / 时间线 at-action-by / GuardianInfo.nickname
@@ -244,6 +300,7 @@ vision-hub/
 │   ├── docker-compose.yml / docker-compose.prod.yml / Dockerfile / deploy.sh
 │   ├── test_all.go                     # 21 步全流程功能测试
 │   └── .env.example
+├── cloud-deploy/           # ★ 云服务器部署包（后端代码 + Docker 配置）
 ├── hardware/               # 硬件固件（最新：esp32/esp32sense.ino + k210/main.py）
 ├── docs/                   # 规格文档 + 交付文档
 │   ├── 硬件对接文档.md        # 硬件 ESP32 对接指南（替代旧 api.md）
@@ -485,7 +542,7 @@ Key components: VisionHubService (foreground), VisionTcpServer (:8080), FallDete
 
 ## Hardware
 
-硬件目录结构（2026-05-05 更新）：
+硬件目录结构（2026-05-06 更新）：
 
 ```
 hardware/
