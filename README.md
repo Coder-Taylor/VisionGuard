@@ -4,6 +4,7 @@
 
 > **生产环境**：`http://47.94.146.53:3000/`
 > **本地开发**：`http://localhost:3000/`
+> **Gitee 仓库**：[gitee.com/taylorchengitee/vision-guard](https://gitee.com/taylorchengitee/vision-guard)
 
 ---
 

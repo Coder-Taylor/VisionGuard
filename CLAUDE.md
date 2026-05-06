@@ -40,6 +40,27 @@ This file provides guidance to Claude Code when working with code in this reposi
 - [ ] 新增文件已在 cloud-deploy 中存在
 - [ ] 后端 Go 文件已同步（如果改了后端）
 
+### Gitee 推送铁律
+
+**代码仓库**：https://gitee.com/taylorchengitee/vision-guard
+
+**每次代码修改完成后必须执行**：
+
+```bash
+# 1. 提交
+git add -A -- ':!cloud-deploy/android/app/build' ':!cloud-deploy/android/.gradle'
+git commit -m "feat/fix: 描述"
+
+# 2. 推送（同步到 GitHub + Gitee）
+git push origin master
+git push gitee master
+```
+
+> 规则：
+> 1. 每轮对话结束前，若有代码改动，必须 commit + push 到 Gitee
+> 2. git add 时排除 cloud-deploy 的 build 产物（Windows 文件名过长限制）
+> 3. 提交信息用中文，格式：`feat: xxx` / `fix: xxx` / `docs: xxx`
+
 ---
 
 ## Session state (2026-05-06 傍晚)
