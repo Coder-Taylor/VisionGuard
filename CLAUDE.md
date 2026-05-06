@@ -101,6 +101,9 @@ git push gitee master
 - **生产服务器**：`http://47.94.146.53:3000/`
 - **本地开发**：`http://localhost:3000/`
 - **端口**：统一 3000
+- **测试账号**（云服务器）：
+  - 用户名 `VisionGuard` / 手机号 `13322701148` / 密码 `VisionGuard2026#`
+  - 用户名 `ocrtest` / 密码 `test123456`（后端开发测试用）
 - **豆包 API Key**：`ark-632ca022-46e7-4e0d-ae10-fc2cd9e1a2fa-21961`（已写入 .env）
 - **硬件 WiFi**：SSID `wuiPhone 16`，密码 `12345ssDLH`
 - **Gitee 仓库**：https://gitee.com/taylorchengitee/vision-guard
