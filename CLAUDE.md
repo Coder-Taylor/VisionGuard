@@ -69,28 +69,18 @@ This file provides guidance to Claude Code when working with code in this reposi
 ### 服务器部署流程
 
 ```bash
-# ★ 一键部署：同步 backend/ → deploy/ → Git 推送 → 服务器自动部署
+# ★ 一键部署：backend/ → deploy/ → rsync 推送服务器 → Docker 重建
 ./server-deploy.sh
-
-# 服务器上手动操作
-ssh root@47.94.146.53
-cd /opt/visionguard/repo && git pull
-cd /opt/visionguard/deploy && bash deploy.sh
 ```
 
-> **服务器目录**（2026-05-08）：
+> **服务器上只有一个 deploy/ 目录，没有 git 仓库**：
 > ```
-> /opt/visionguard/
-> ├── repo/        ← Git 仓库（git pull 获取最新代码）
-> └── deploy/      ← 部署运行目录 = ln -s /opt/visionguard/repo/deploy/
-> ```
->
-> **Web 部署注册信息**：
-> ```
-> 项目名: vision-hub
-> 仓库: https://gitee.com/taylorchengitee/vision-guard
-> 部署源路径: deploy/
-> 服务器部署路径: /opt/visionguard/deploy/
+> /opt/visionguard/deploy/    ← 部署运行目录（rsync 直接推送）
+>     ├── cmd/ internal/ ...  ← Go 源码
+>     ├── Dockerfile
+>     ├── docker-compose.prod.yml
+>     ├── deploy.sh           ← 服务器端启动脚本
+>     └── .env                ← 生产环境变量
 > ```
 >
 > **服务器全架构**（未来规划，2026-05-08）：

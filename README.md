@@ -765,12 +765,9 @@ echo -e "\n=== 全部 6 步完成 ==="
 > **前提**：服务器安装 Docker，代码已 push 并 pull 到服务器
 
 ```bash
-# ★ 一键部署：同步 backend/ → deploy/ → Git 推送 → 服务器自动部署
+# ★ 一键部署：backend/ → deploy/ → rsync 推送服务器 → Docker 重建
 ./server-deploy.sh
-
-# 服务器上手动操作
-ssh root@47.94.146.53
-cd /opt/visionguard/deploy && bash deploy.sh
+```
 
 # 验证
 curl http://localhost:3000/api/v1/healthz
