@@ -1,0 +1,8 @@
+{
+  "project": "vision-hub",
+  "repo": "https://gitee.com/taylorchengitee/vision-guard",
+  "deploy": {
+    "source": "deploy/",
+    "server_path": "/opt/visionguard/deploy/"
+  }
+}
