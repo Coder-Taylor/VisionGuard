@@ -10,23 +10,24 @@
 
 | 你想做什么 | 去哪里 |
 |------------|--------|
-| 安装 APP 测试 | 下载 `apk/VisionGuard-v1.4-cloud.apk`（连本地）或 `cloud-deploy/android/apk/VisionGuard-v1.4-cloud.apk`（连云服务器） |
+| 安装 APP 测试 | 下载 `apk/VisionGuard-v1.4-cloud.apk`（连本地）或 `submission/android/apk/VisionGuard-v1.4-cloud.apk`（连云服务器） |
 | 看后端接口 | 读 `docs/业务流程与后端设计.md` |
 | 看 UI 设计规范 | 读 `docs/Android-UI设计文档.md` |
 | 烧录硬件 | 固件在 `hardware/esp32/esp32sense.ino`，对接指南在 `docs/硬件对接文档.md` |
-| 部署到云服务器 | 读 `docs/部署指南.md`，部署包在 `cloud-deploy/` |
+| 部署到云服务器 | 读 `docs/部署指南.md`，部署包在 `submission/` |
 | 看改了啥 | 读 `docs/变更记录.md` |
 
-### 双版本说明
+### 三版本说明
 
-项目存在两份 Android 源码，**代码基本一致，仅 BASE_URL 不同**：
+项目分为三个版本，用途不同：
 
-| 版本 | 源码位置 | BASE_URL | APK 位置 |
-|------|----------|----------|----------|
-| **本地开发版** | `app/`（项目根目录） | `http://127.0.0.1:3000/` | `apk/VisionGuard-v1.4-cloud.apk` |
-| **云版** | `cloud-deploy/android/` | `http://47.94.146.53:3000/` | `cloud-deploy/android/apk/VisionGuard-v1.4-cloud.apk` |
+| 版本 | 位置 | 用途 |
+|------|------|------|
+| **本地测试版** | 项目根目录 `app/` + `backend/` | 日常开发、本地调试（`127.0.0.1:3000`） |
+| **提交评委版** | `submission/` | 比赛提交，含三端完整源码+APK（连 `47.94.146.53`） |
+| **云端部署版** | 服务器 `/opt/visionguard/deploy/` | 仅后端+Docker，不含 Android/硬件 |
 
-> 修改 Android 代码时需同步两份源码，确保 `cloud-deploy/android/.../RetrofitClient.kt` 的 BASE_URL 不被覆盖。
+> **Android 双版本 BASE_URL**：`app/` 用 `127.0.0.1:3000`，`submission/android/` 用 `47.94.146.53:3000`。修改代码时需同步两份。
 
 ---
 
@@ -373,7 +374,7 @@ vision-hub/                          # ★ Gitee: gitee.com/taylorchengitee/visi
 │   ├── esp32/esp32sense.ino        # ★ ESP32 固件（WiFi: wuiPhone 16, 指向云服务器）
 │   └── k210/                       # K210 AI 视觉（main.py + detect.kmodel）
 │
-├── cloud-deploy/                   # 🚀 云服务器部署包（后端源码 + Docker + 三端完整交付）
+├── submission/                   # 🚀 评委提交版（三端完整源码 + APK + Docker）
 │   ├── cmd/server/main.go          #    入口（81 路由，17 表 AutoMigrate）
 │   ├── internal/                   #    Go 后端源码（与 backend/ 同步）
 │   ├── Dockerfile + docker-compose.prod.yml + .env.example
@@ -766,21 +767,18 @@ echo -e "\n=== 全部 6 步完成 ==="
 > **前提**：服务器安装 Docker，代码已 push 并 pull 到服务器
 
 ```bash
-cd cloud-deploy
+# 方式一：deploy.sh 一键部署（推荐，从本地推送）
+cd submission && ./deploy.sh
 
-# 创建 .env（从旧容器提取或从 .env.example 复制）
-docker inspect visionguard-backend-1 --format '{{range .Config.Env}}{{println .}}{{end}}' \
-  | grep -vE '^(PATH=|TZ=)' > .env 2>/dev/null || cp .env.example .env
+# 方式二：服务器上手动部署
+ssh root@47.94.146.53
+cd /opt/visionguard/deploy
 
-# ⚠️ 编辑 .env，云服务器必须改的参数：
-#   SERVER_PORT=3000
-#   DB_HOST=postgres          ← Docker 容器间用服务名通信，不是 localhost！
-#   REDIS_HOST=redis          ← 同上
-#   DB_USER=postgres
-#   DB_PASSWORD=visionhub
-#   JWT_SECRET=fabd660f3319c6532f917aa82004aa846157fd41c0b52689268c3f0fde3db99b
+# 首次部署需创建 .env
+cp .env.example .env
+nano .env  # 编辑关键配置
 
-# 构建并启动（注意：docker compose，不是 docker-compose）
+# 构建并启动
 docker compose -f docker-compose.prod.yml up -d --build
 
 # 验证

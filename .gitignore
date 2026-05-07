@@ -23,7 +23,7 @@ replay_pid*.log
 
 # APK builds (only ignore build output dirs, keep release APKs)
 app/build/
-cloud-deploy/android/app/build/
+submission/android/app/build/
 
 # Keystore files (never commit)
 *.keystore
@@ -31,7 +31,7 @@ cloud-deploy/android/app/build/
 
 # Go backend
 backend/.env
-cloud-deploy/.env
+submission/.env
 _credentials.md
 backend/*.exe
 backend/tmp/
@@ -39,8 +39,8 @@ backend/tmp/
 # Claude Code local settings
 .claude/
 
-# Cloud deploy build artifacts
-cloud-deploy/android/app/build/
-cloud-deploy/android/.gradle/
-cloud-deploy/android/build/
-cloud-deploy/android/local.properties
+# Submission build artifacts
+submission/android/app/build/
+submission/android/.gradle/
+submission/android/build/
+submission/android/local.properties

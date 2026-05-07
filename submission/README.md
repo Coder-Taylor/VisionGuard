@@ -7,7 +7,7 @@
 ## 文件清单
 
 ```
-cloud-deploy/
+submission/
 ├── README.md                        # 本文件（部署说明）
 ├── 部署说明.md                       # 中文快速部署指南
 │
@@ -103,7 +103,7 @@ docker compose version
 ```bash
 # 方式 A：直接 scp 整个文件夹
 cd vision-hub
-scp -r cloud-deploy/* root@47.94.146.53:/opt/visionguard/
+scp -r submission/* root@47.94.146.53:/opt/visionguard/
 
 # 方式 B：服务器 git pull（推荐）
 ssh root@47.94.146.53

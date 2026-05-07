@@ -17,29 +17,84 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 ## ⚠️ 重要规则（每次改动必须遵守）
 
-### 双版本 BASE_URL 铁律
+### 三版本架构
 
-项目存在**两份源码**，BASE_URL **绝对不能混淆**：
+项目存在**三个版本**，用途和位置各不同：
 
-| 版本 | 路径 | BASE_URL |
-|------|------|----------|
-| **本地开发版** | `app/`（项目根目录） | `http://127.0.0.1:3000/` |
-| **云版/分发版** | `cloud-deploy/android/` | `http://47.94.146.53:3000/` |
+| 版本 | 路径 | 用途 | BASE_URL |
+|------|------|------|----------|
+| **本地测试版** | 项目根目录 `app/` + `backend/` | 日常开发、本地调试 | `http://127.0.0.1:3000/` |
+| **提交评委版** | `submission/` | 比赛提交，含三端完整源码+APK | `http://47.94.146.53:3000/`（Android） |
+| **云端部署版** | 服务器 `/opt/visionguard/deploy/` | 服务器运行，仅后端+Docker | `http://47.94.146.53:3000/` |
+
+> **submission/ 结构**（评委提交包 = 完整三端）：
+> ```
+> submission/
+> ├── cmd/ internal/ go.mod/...    ← 后端 Go 源码
+> ├── android/                     ← Android 完整源码 + 预构建 APK
+> ├── hardware/                    ← 硬件固件（ESP32 + K210）
+> ├── Dockerfile                   ← 后端镜像构建
+> ├── docker-compose.prod.yml      ← 生产环境部署
+> ├── deploy.sh                    ← ★ 一键推送到服务器
+> └── .env                         ← 生产环境变量
+> ```
+
+### Android 双版本 BASE_URL 铁律
+
+`submission/android/` 和项目根目录 `app/` 的 Android 代码**基本一致，仅 BASE_URL 不同**：
+
+| 版本 | RetrofitClient.kt 位置 | BASE_URL |
+|------|------------------------|----------|
+| **本地测试版** | `app/.../RetrofitClient.kt` | `http://127.0.0.1:3000/` |
+| **提交评委版** | `submission/android/.../RetrofitClient.kt` | `http://47.94.146.53:3000/` |
 
 > **规则**：
 > 1. 每次修改 Android 代码，**必须同时更新两份源码**
-> 2. 本地版 `RetrofitClient.kt` 永远用 `127.0.0.1:3000`，云版永远用 `47.94.146.53:3000`
-> 3. sync 文件时**先确认 cloud-deploy 的 BASE_URL 没被覆盖**，如果被覆盖了立即改回来
-> 4. 构建分发 APK 必须从 `cloud-deploy/android/` 构建，构建本地测试 APK 从根目录 `app/` 构建
-> 5. **默认装云版**：没有特殊说明时，安装到手机的 APK 必须是云版（`cloud-deploy/android/` 构建），BASE_URL 指向 `47.94.146.53:3000`
+> 2. 本地版永远用 `127.0.0.1:3000`，submission 版永远用 `47.94.146.53:3000`
+> 3. 同步时**先确认 submission 的 BASE_URL 没被覆盖**，如果被覆盖了立即改回来
+> 4. 构建评委版 APK 从 `submission/android/` 构建，构建本地测试 APK 从根目录 `app/` 构建
+> 5. **默认装云版**：没有特殊说明时，安装到手机的 APK 必须是 submission 版（连 `47.94.146.53:3000`）
 
 ### 同步检查清单
 
-每次改动后同步到 cloud-deploy 时，**必须验证**：
-- [ ] `cloud-deploy/android/.../RetrofitClient.kt` BASE_URL 仍是云地址
-- [ ] `cloud-deploy/android/app/build.gradle.kts` minSdk = 31
-- [ ] 新增文件已在 cloud-deploy 中存在
+每次改动后同步到 submission 时，**必须验证**：
+- [ ] `submission/android/.../RetrofitClient.kt` BASE_URL 仍是云地址
+- [ ] `submission/android/app/build.gradle.kts` minSdk = 31
+- [ ] 新增文件已在 submission 中存在
 - [ ] 后端 Go 文件已同步（如果改了后端）
+
+### 服务器部署流程
+
+```bash
+# 方式一：deploy.sh 一键推送（推荐）
+cd submission
+./deploy.sh
+
+# 方式二：手动部署
+# 1. 推送代码到 Gitee
+git push gitee master
+# 2. SSH 到服务器
+ssh root@47.94.146.53
+# 3. 拉取最新代码
+cd /opt/visionguard/repo && git pull
+# 4. 复制后端文件到部署目录
+rsync -av --exclude='android/' --exclude='hardware/' \
+    /opt/visionguard/repo/submission/ /opt/visionguard/deploy/
+# 5. 重建 Docker
+cd /opt/visionguard/deploy
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+> **服务器目录**（清理后，2026-05-08）：
+> ```
+> /opt/visionguard/
+> ├── repo/                  ← Git 仓库（完整项目，含 submission/）
+> └── deploy/                ← 云端部署目录（仅后端，不含 android/hardware）
+>     ├── cmd/ internal/ ...
+>     ├── Dockerfile
+>     ├── docker-compose.prod.yml
+>     └── .env
+> ```
 
 ### Gitee 推送铁律
 
@@ -49,7 +104,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 ```bash
 # 1. 提交
-git add -A -- ':!cloud-deploy/android/app/build' ':!cloud-deploy/android/.gradle'
+git add -A -- ':!submission/android/app/build' ':!submission/android/.gradle'
 git commit -m "feat/fix: 描述"
 
 # 2. 推送（同步到 GitHub + Gitee）
@@ -59,7 +114,7 @@ git push gitee master
 
 > 规则：
 > 1. 每轮对话结束前，若有代码改动，必须 commit + push 到 Gitee
-> 2. git add 时排除 cloud-deploy 的 build 产物（Windows 文件名过长限制）
+> 2. git add 时排除 submission 的 build 产物（Windows 文件名过长限制）
 > 3. 提交信息用中文，格式：`feat: xxx` / `fix: xxx` / `docs: xxx`
 
 ### Docker 中国网络铁律
@@ -77,7 +132,7 @@ git push gitee master
 > RUN go mod download
 > ```
 >
-> **影响的文件**：`backend/Dockerfile`、`cloud-deploy/Dockerfile`（两个都要改，保持一致）
+> **影响的文件**：`backend/Dockerfile`、`submission/Dockerfile`（两个都要改，保持一致）
 
 **规则 2：docker-compose 只包含后端实际依赖的服务。禁止添加未使用的第三方镜像**。
 
@@ -89,11 +144,19 @@ git push gitee master
 > - `postgres:16-alpine` ✅
 > - `redis:7-alpine` ✅
 >
-> **影响的文件**：`cloud-deploy/docker-compose.yml`、`cloud-deploy/docker-compose.prod.yml`、`backend/docker-compose.yml`、`backend/docker-compose.prod.yml`（四个都要保持一致）
+> **影响的文件**：`submission/docker-compose.yml`、`submission/docker-compose.prod.yml`、`backend/docker-compose.yml`、`backend/docker-compose.prod.yml`（四个都要保持一致）
 
 ---
 
-## Session state (2026-05-06 傍晚)
+## Session state (2026-05-08)
+
+### 2026-05-08 — 项目结构重组（三版本架构）
+
+- `cloud-deploy/` → 改名为 `submission/`（评委提交版 = 完整三端源码+APK+Docker）
+- 服务器目录清理：删除冗余源码 247MB + 空壳目录
+- 部署流程分离：服务器 `/opt/visionguard/deploy/`（仅后端）≠ `submission/`（完整版）
+- 新增 `submission/deploy.sh`：一键推送后端到服务器 + 重建 Docker
+- CLAUDE.md + README.md 写入三版本规则（本地测试版 / 提交评委版 / 云端部署版）
 
 ### 项目信息
 
@@ -181,14 +244,14 @@ git push gitee master
 | AI | **忽视 API 字段名修复 (2026-05-06)**：根因 `UpdateAlertStatusReq(status)` → 改 `action` 字段对齐后端 `json:"action"`；后端 switch-case 同时接受 `confirm/confirmed` 等；新增独立 `dismissScope` 防止切 Tab 取消协程；`rememberSaveable` 跨页面记住已忽视 ID |
 | AI | **地图初始化修复 (2026-05-06)**：AMap 3D SDK 10.x 新增 `MapsInitializer.updatePrivacyShow/Agree` 隐私合规初始化；图例从右下移到左上避免挡住缩放按钮；开启 `isZoomGesturesEnabled` |
 | AI | **硬件代码更新 (2026-05-06)**：硬件团队最新 ESP32 固件 `hardware1test.zip` → 已整合到 `hardware/esp32/esp32sense.ino` + `wordmap.h` + `k210/detect.kmodel` + `k210/main.py`，SN_TEST_003→SN_TEST_005 |
-| AI | **cloud-deploy 完整交付包 (2026-05-06)**：重组织 cloud-deploy 为三端完整交付目录 — ① 后端 Go 源码（internal/cmd/config/migrations + Docker）② Android 完整源码（18 页面 Kotlin + Compose + Gradle）③ 硬件固件源码（ESP32 + K210）④ 预构建云版 APK（android/apk/VisionGuard-v1.4-cloud.apk，已签名，118MB，BASE_URL 指向 47.94.146.53:3000）。本地版 APK 在项目根目录。含中英文 README。
+| AI | **submission 完整交付包 (2026-05-06)**：重组织 submission 为三端完整交付目录 — ① 后端 Go 源码（internal/cmd/config/migrations + Docker）② Android 完整源码（18 页面 Kotlin + Compose + Gradle）③ 硬件固件源码（ESP32 + K210）④ 预构建云版 APK（android/apk/VisionGuard-v1.4-cloud.apk，已签名，118MB，BASE_URL 指向 47.94.146.53:3000）。本地版 APK 在项目根目录。含中英文 README。
 | AI | **CompactTopBar 标题栏修复 (2026-05-06)**：7 页面 TopAppBar 从 M3 默认 64dp → CompactTopBar 48dp（Location/DeviceManagement/ElderManagement/ElderDetail/NotificationList/OcrMedicine/UserSettings），统一 PrimaryBlue 背景 + ArrowBack + 可选 actions
 | AI | **NetworkMonitor 离线检测 (2026-05-06)**：新增 `NetworkMonitor` object，`ConnectivityManager.NetworkCallback` 实时追踪网络状态，`isOnline()` 供全局查询。`MainActivity.onCreate()` 调用 `NetworkMonitor.init(this)`
 | AI | **ErrorHelper 离线提示 (2026-05-06)**：`ErrorHelper.userMessage()` 优先查 `NetworkMonitor.isOnline()`，设备无网络时返回"当前处于离线状态，请检查手机网络"，无需 Context 参数
 | AI | **通知中心修复 (2026-05-06)**：后端 notification service 响应字段 `messages`→`list`（对齐 Android PaginatedData）；MsgItem 新增 `priority` 字段；Android NotificationApi `@Query("read")`→`@Query("readStatus")`
 | AI | **ProfileScreen 未读角标 (2026-05-06)**：ProfileScreen 消息通知入口新增 `UnreadBadge`（呼吸动效），LaunchedEffect 启动时获取未读计数
 | AI | **OCR 后端二进制上传 (2026-05-06)**：`handler/ocr.go` UploadImage 支持双模式 — multipart/form-data（硬件 JPEG 二进制，按 deviceId 分目录存储）+ application/json（Android base64 data URL）；`main.go` 新增 `app.Static("/uploads", "./uploads")` 静态文件服务
-| AI | **cloud-deploy 全量同步 + APK 构建 (2026-05-06)**：将 CompactTopBar/NetworkMonitor/ErrorHelper/通知修复/OCR multipart 等全部改动同步至 cloud-deploy；构建 VisionGuard-v1.4-cloud.apk（118MB）并 ADB 安装到手机
+| AI | **submission 全量同步 + APK 构建 (2026-05-06)**：将 CompactTopBar/NetworkMonitor/ErrorHelper/通知修复/OCR multipart 等全部改动同步至 submission；构建 VisionGuard-v1.4-cloud.apk（118MB）并 ADB 安装到手机
 | AI | **CompactTopBar 文字裁剪修复 (2026-05-06)**：M3 TopAppBar 强制 48dp 导致文字被内部 padding 遮挡 → 改用自定义 Row（48dp + PrimaryBlue 背景 + IconButton + Text weight(1f)），去掉 TopAppBar/TopAppBarDefaults/ExperimentalMaterial3Api 依赖
 | AI | **用药计划后端 (2026-05-06)**：新增 `model.MedicationPlan`（药品/剂量/频次/JSON schedule/起止日期/状态）+ `MedicationService` CRUD + `MedicationHandler` 6 路由（监护人创建/列表/更新/删除 + 硬件轮询 + 豆包识别）+ `GET /api/v1/device/:deviceId/pending-messages` 硬件轮询（±3min 用药提醒 + 5min 内 OCR 结果）；`app.Static` 静态文件服务
 | AI | **豆包 API 占位 (2026-05-06)**：`config.go` 新增 `DOUBAO_API_KEY`/`DOUBAO_API_URL`（默认 ark.cn-beijing.volces.com）；`DoubaoService.RecognizeMedicine` 占位（注释包含真实调用格式）；`MockRecognizeMedicine` 基于 OCR 文字关键词模拟识别；`.env.example` 新增豆包配置项
@@ -197,13 +260,13 @@ git push gitee master
 | AI | **豆包 API 正式接入 (2026-05-06)**：OC​R 管线完全替换为豆包 — UploadImage 后异步调用 DoubaoService.RecognizeMedicine（doubao-seed-1.6-vision）；OcrService 依赖 DoubaoService；移除 mockOCR；豆包 Prompt 标准化输出（drugName/specification/indication/usage/warnings/riskLevel/confidence）；.env 填入真实 API Key `ark-632c...`
 | AI | **OCR 响应字段对齐 Android (2026-05-06)**：后端 ListRecords 返回 `list`（对齐 PaginatedData）+ 新增 taskId/ocrText 字段；GetOcrResult 返回 medicineName/dosage/contraindications 等标准化豆包字段
 | AI | **并发写入保护 (2026-05-06)**：新增 `internal/infra/lock.go` Redis 分布式锁（SET NX EX + Lua 脚本安全释放）+ `WithLock` 辅助函数
-| AI | **OC​R 管线完整重写 (2026-05-06)**：上传→豆包异步识别→存储结果→硬件/APP轮询 全链路打通；进度消息改为中文豆包阶段；cloud-deploy 全量同步 + 云版 APK 重建
-| AI | **ESP32 WiFi/服务器更新 (2026-05-06)**：固件 WiFi SSID → `wuiPhone 16`、密码 → `12345ssDLH`、BASE_URL → `http://47.94.146.53:3000`（云服务器）；cloud-deploy/hardware 同步
+| AI | **OC​R 管线完整重写 (2026-05-06)**：上传→豆包异步识别→存储结果→硬件/APP轮询 全链路打通；进度消息改为中文豆包阶段；submission 全量同步 + 云版 APK 重建
+| AI | **ESP32 WiFi/服务器更新 (2026-05-06)**：固件 WiFi SSID → `wuiPhone 16`、密码 → `12345ssDLH`、BASE_URL → `http://47.94.146.53:3000`（云服务器）；submission/hardware 同步
 | AI | **用药计划闹钟式时间选择 (2026-05-06)**：替换逗号分隔文本输入为 TimePicker 时间片（Chip + 添加/删除按钮）；M3 DatePickerDialog 替代系统 DatePickerDialog（与老人生日同款）
 | AI | **全局渐变背景 (2026-05-06)**：17 页面柔和毛玻璃渐变（上 浅米黄泛粉 #FFF5F0 → 下 纯白）；AppColors.kt 新增 Modifier.gradientBackground() 扩展函数；Scaffold containerColor 改为 Color.Transparent 透出渐变
-| AI | **OCR 硬件轮询 GET 401 修复 (2026-05-06)**：根因 Fiber 路由匹配顺序 — `/api/v1/ocr/result/:taskId`（参数路由, userAuth）注册在 `/api/v1/ocr/result/latest`（精确路由, deviceAuth）之前，Fiber 将 `latest` 当 `:taskId` 值匹配到 userAuth 中间件 → 设备 JWT 通不过用户认证 → 401。修复：精确路由移到参数路由前。同步修复 cloud-deploy。
-| AI | **drugName UTF-8 截断修复 (2026-05-06)**：豆包返回中文 drugName 时 byte-based `drugName[:20]` 切到多字节字符中间 → DB UTF-8 编码错误。改为 rune-based `[]rune(drugName)[:20]`。同步修复 cloud-deploy。
-| AI | **云端重新部署 (2026-05-06)**：旧容器名 `visionguard-*`，新 `cloud-deploy-*`，端口冲突 + volume 迁移（pgdata→visionguard_pgdata）。部署命令：`cd cloud-deploy && docker compose -f docker-compose.prod.yml up -d --build`。
+| AI | **OCR 硬件轮询 GET 401 修复 (2026-05-06)**：根因 Fiber 路由匹配顺序 — `/api/v1/ocr/result/:taskId`（参数路由, userAuth）注册在 `/api/v1/ocr/result/latest`（精确路由, deviceAuth）之前，Fiber 将 `latest` 当 `:taskId` 值匹配到 userAuth 中间件 → 设备 JWT 通不过用户认证 → 401。修复：精确路由移到参数路由前。同步修复 submission。
+| AI | **drugName UTF-8 截断修复 (2026-05-06)**：豆包返回中文 drugName 时 byte-based `drugName[:20]` 切到多字节字符中间 → DB UTF-8 编码错误。改为 rune-based `[]rune(drugName)[:20]`。同步修复 submission。
+| AI | **云端重新部署 (2026-05-06)**：旧容器名 `visionguard-*`，新 `cloud-deploy-*`，端口冲突 + volume 迁移（pgdata→visionguard_pgdata）。部署命令：`cd submission && docker compose -f docker-compose.prod.yml up -d --build`。
 
 ### 当前状态 (2026-05-06 深夜)
 
@@ -224,8 +287,8 @@ git push gitee master
   - 个人：ProfileScreen（编辑昵称+4个功能入口）+ UserSettingsScreen（修改密码+手机号换绑）
   - 通知：NotificationListScreen（消息列表+全部已读）
 - Android 构建：`./gradlew :app:assembleRelease` ✅（已签名）
-- Release APK：`VisionGuard-v1.4.apk`（118MB），项目根目录（本地版，127.0.0.1:3000）；`cloud-deploy/android/apk/VisionGuard-v1.4-cloud.apk`（118MB，云版，47.94.146.53:3000）
-- cloud-deploy = 完整三端交付包：后端源码 + Android 完整源码 + 预构建 APK + 硬件固件
+- Release APK：`VisionGuard-v1.4.apk`（118MB），项目根目录（本地版，127.0.0.1:3000）；`submission/android/apk/VisionGuard-v1.4-cloud.apk`（118MB，云版，47.94.146.53:3000）
+- submission = 完整三端交付包：后端源码 + Android 完整源码 + 预构建 APK + 硬件固件
 - 云服务器：Dockerfile 国内需加 `ENV GOPROXY=https://goproxy.cn,direct` 解决 go mod download 超时
 - 高德地图 SDK 10.0.600 已集成，API Key 已配置（`d8fe...`，见 local.properties）
 - 全局设计规范已对齐 UI11.DOCX：#165DFF 主色 + 16dp 统一圆角
@@ -236,7 +299,7 @@ git push gitee master
 - 项目名已统一为 VisionGuard，端口统一为 3000
 - 生产服务器：`http://47.94.146.53:3000/`
 - **OCR 管线状态**：豆包 API 已接入（ep-20260506095629-bgl8v），上传→异步识别→DB 存储→硬件/APP 轮询全链路已通；测试脚本 `test_ocr.py`（Python + curl）可端到端验证；硬件轮询 GET 401 已修复（Fiber 路由顺序）
-- **云端部署**：`docker compose -f docker-compose.prod.yml up -d --build`（在 `cloud-deploy/` 目录执行，需 `.env`）；数据卷 `visionguard_pgdata`；旧容器名 `visionguard-*` 已迁移至 `cloud-deploy-*`
+- **云端部署**：`docker compose -f docker-compose.prod.yml up -d --build`（在 `submission/` 目录执行，需 `.env`）；数据卷 `visionguard_pgdata`；旧容器名 `visionguard-*` 已迁移至 `cloud-deploy-*`
 
 ### Android 路由接入状态
 
@@ -261,9 +324,13 @@ python3 test_ocr.py             # OCR 全链路（设备认证→上传图片→
 ### 云端部署
 
 ```bash
-# 服务器上（/opt/visionguard/repo/）
-cd cloud-deploy
-# 首次部署需创建 .env（可用 docker inspect visionguard-backend-1 提取旧容器环境变量）
+# 方式一：deploy.sh 一键部署（推荐）
+cd submission && ./deploy.sh
+
+# 方式二：服务器上手动操作
+ssh root@47.94.146.53
+cd /opt/visionguard/deploy
+# 首次部署需创建 .env
 docker compose -f docker-compose.prod.yml up -d --build
 
 # 查看日志
@@ -375,7 +442,7 @@ vision-hub/
 │   ├── docker-compose.yml / docker-compose.prod.yml / Dockerfile / deploy.sh
 │   ├── test_all.go                     # 21 步全流程功能测试
 │   └── .env.example
-├── cloud-deploy/           # ★ 云服务器部署包（后端代码 + Docker 配置）
+├── submission/           # ★ 评委提交版（三端完整源码 + APK + Docker）
 ├── hardware/               # 硬件固件（最新：esp32/esp32sense.ino + k210/main.py）
 ├── docs/                   # 规格文档 + 交付文档
 │   ├── 硬件对接文档.md        # 硬件 ESP32 对接指南（替代旧 api.md）
