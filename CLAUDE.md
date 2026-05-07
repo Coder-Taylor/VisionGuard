@@ -25,7 +25,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 |------|-----------|------|----------|
 | **本地测试版** | `app/` + `backend/` | 日常开发调试 | `http://127.0.0.1:3000/` |
 | **提交评委版** | `submission/` | 三端完整源码+APK | `http://47.94.146.53:3000/` |
-| **云端部署版** | `deploy/` | 纯后端 + Docker（服务器直接 git pull 部署） | `http://47.94.146.53:3000/` |
+| **云端部署版** | `deploy/` | 纯后端 + Docker（rsync 直接推送，无 git） | `http://47.94.146.53:3000/` |
 
 > **各目录结构**：
 > ```
@@ -40,7 +40,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 >                                  └── .env       (服务器独有)      └── hardware/ (ESP32+K210)
 > ```
 >
-> **代码流向**：`backend/` 是后端唯一源头 → `server-deploy.sh` 自动同步到 `deploy/` → Git 推送 → 服务器 `git pull` → `cd deploy && docker compose up -d --build`
+> **代码流向**：`backend/` 是后端唯一源头 → `./server-deploy.sh` 自动：① 同步到 `deploy/` ② rsync 推送到服务器 ③ Docker 重建
 
 ### Android 双版本 BASE_URL 铁律
 
@@ -82,6 +82,8 @@ This file provides guidance to Claude Code when working with code in this reposi
 >     ├── deploy.sh           ← 服务器端启动脚本
 >     └── .env                ← 生产环境变量
 > ```
+>
+> `web-register.json`（根目录）供服务器 Web AI 识别本项目部署配置。
 >
 > **服务器全架构**（未来规划，2026-05-08）：
 > - 硬件：阿里云轻量服务器，Ubuntu 22.04，2C2G，40G，北京，IP `47.94.146.53`
@@ -149,7 +151,7 @@ git push gitee master
 - `cloud-deploy/` → 改名为 `submission/`（评委提交版 = 完整三端源码+APK+Docker）
 - 服务器目录清理：删除冗余源码 247MB + 空壳目录
 - 部署流程分离：服务器 `/opt/visionguard/deploy/`（仅后端）≠ `submission/`（完整版）
-- 新增 `submission/deploy.sh`：一键推送后端到服务器 + 重建 Docker
+- 新增 `server-deploy.sh`（根目录）：一键同步 backend→deploy→rsync→服务器 Docker 重建
 - CLAUDE.md + README.md 写入三版本规则（本地测试版 / 提交评委版 / 云端部署版）
 
 ### 项目信息
@@ -260,7 +262,7 @@ git push gitee master
 | AI | **全局渐变背景 (2026-05-06)**：17 页面柔和毛玻璃渐变（上 浅米黄泛粉 #FFF5F0 → 下 纯白）；AppColors.kt 新增 Modifier.gradientBackground() 扩展函数；Scaffold containerColor 改为 Color.Transparent 透出渐变
 | AI | **OCR 硬件轮询 GET 401 修复 (2026-05-06)**：根因 Fiber 路由匹配顺序 — `/api/v1/ocr/result/:taskId`（参数路由, userAuth）注册在 `/api/v1/ocr/result/latest`（精确路由, deviceAuth）之前，Fiber 将 `latest` 当 `:taskId` 值匹配到 userAuth 中间件 → 设备 JWT 通不过用户认证 → 401。修复：精确路由移到参数路由前。同步修复 submission。
 | AI | **drugName UTF-8 截断修复 (2026-05-06)**：豆包返回中文 drugName 时 byte-based `drugName[:20]` 切到多字节字符中间 → DB UTF-8 编码错误。改为 rune-based `[]rune(drugName)[:20]`。同步修复 submission。
-| AI | **云端重新部署 (2026-05-06)**：旧容器名 `visionguard-*`，新 `cloud-deploy-*`，端口冲突 + volume 迁移（pgdata→visionguard_pgdata）。部署命令：`cd submission && docker compose -f docker-compose.prod.yml up -d --build`。
+| AI | **云端重新部署 (2026-05-06)**：旧容器名 `visionguard-*`，新 `cloud-deploy-*`，端口冲突 + volume 迁移（pgdata→visionguard_pgdata）。部署命令：`cd deploy && docker compose -f docker-compose.prod.yml up -d --build`。
 
 ### 当前状态 (2026-05-06 深夜)
 
@@ -293,7 +295,7 @@ git push gitee master
 - 项目名已统一为 VisionGuard，端口统一为 3000
 - 生产服务器：`http://47.94.146.53:3000/`
 - **OCR 管线状态**：豆包 API 已接入（ep-20260506095629-bgl8v），上传→异步识别→DB 存储→硬件/APP 轮询全链路已通；测试脚本 `test_ocr.py`（Python + curl）可端到端验证；硬件轮询 GET 401 已修复（Fiber 路由顺序）
-- **云端部署**：`docker compose -f docker-compose.prod.yml up -d --build`（在 `submission/` 目录执行，需 `.env`）；数据卷 `visionguard_pgdata`；旧容器名 `visionguard-*` 已迁移至 `cloud-deploy-*`
+- **云端部署**：`./server-deploy.sh`（根目录一键部署），或手动 `cd deploy && docker compose -f docker-compose.prod.yml up -d --build`；数据卷 `visionguard_pgdata`；旧容器名 `visionguard-*` 已迁移至 `cloud-deploy-*`
 
 ### Android 路由接入状态
 
@@ -318,17 +320,11 @@ python3 test_ocr.py             # OCR 全链路（设备认证→上传图片→
 ### 云端部署
 
 ```bash
-# 方式一：deploy.sh 一键部署（推荐）
-cd submission && ./deploy.sh
+# 一键部署（在项目根目录执行）
+./server-deploy.sh
 
-# 方式二：服务器上手动操作
-ssh root@47.94.146.53
-cd /opt/visionguard/deploy
-# 首次部署需创建 .env
-docker compose -f docker-compose.prod.yml up -d --build
-
-# 查看日志
-docker logs cloud-deploy-backend-1 --tail 50
+# 查看服务器日志
+ssh root@47.94.146.53 "docker logs cloud-deploy-backend-1 --tail 50"
 
 # 注意：数据卷名为 visionguard_pgdata（从旧 visionguard 项目迁移）
 ```
@@ -433,9 +429,11 @@ vision-hub/
 │   │   │   ├── ocr.go                  # 上传记录/OCR任务(异步mock)/LLM建议生成/识别反馈
 │   │   │   └── location.go             # 位置(Redis→DB)/轨迹/围栏CRUD/告警地图标记/健康数据
 │   │   └── middleware/auth.go          # UserAuth + DeviceAuth（JWT 校验，c.Locals 传用户/设备ID）
-│   ├── docker-compose.yml / docker-compose.prod.yml / Dockerfile / deploy.sh
+│   ├── docker-compose.yml / docker-compose.prod.yml / Dockerfile
 │   ├── test_all.go                     # 21 步全流程功能测试
 │   └── .env.example
+├── server-deploy.sh        # ★ 一键部署（backend→deploy→rsync→服务器 Docker）
+├── web-register.json       # 服务器 Web AI 注册配置
 ├── submission/           # ★ 评委提交版（三端完整源码 + APK + Docker）
 ├── hardware/               # 硬件固件（最新：esp32/esp32sense.ino + k210/main.py）
 ├── docs/                   # 规格文档 + 交付文档

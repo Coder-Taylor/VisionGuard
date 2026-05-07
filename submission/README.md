@@ -98,17 +98,15 @@ docker compose version
 
 ### 第 1 步：上传到服务器
 
-在本地 Windows 终端执行：
+在本地终端执行：
 
 ```bash
-# 方式 A：直接 scp 整个文件夹
+# 方式 A：rsync 推送（推荐）
 cd vision-hub
-scp -r submission/* root@47.94.146.53:/opt/visionguard/
+rsync -avz --delete --exclude='.env' submission/ root@47.94.146.53:/opt/visionguard/
 
-# 方式 B：服务器 git pull（推荐）
-ssh root@47.94.146.53
-cd /opt/visionguard
-git pull origin master
+# 方式 B：scp 整个文件夹
+scp -r submission/* root@47.94.146.53:/opt/visionguard/
 ```
 
 ### 第 2 步：配置环境变量
@@ -264,7 +262,6 @@ docker compose -f docker-compose.prod.yml restart backend
 docker compose -f docker-compose.prod.yml down
 
 # 更新代码后重建
-git pull origin master
 docker compose -f docker-compose.prod.yml up -d --build
 
 # 查看数据库
