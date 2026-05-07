@@ -82,8 +82,23 @@ cd /opt/visionguard/deploy && bash deploy.sh
 > ```
 > /opt/visionguard/
 > ├── repo/        ← Git 仓库（git pull 获取最新代码）
-> └── deploy/      ← 部署运行目录 → ln -s /opt/visionguard/repo/deploy/
+> └── deploy/      ← 部署运行目录 = ln -s /opt/visionguard/repo/deploy/
 > ```
+>
+> **Web 部署注册信息**：
+> ```
+> 项目名: vision-hub
+> 仓库: https://gitee.com/taylorchengitee/vision-guard
+> 部署源路径: deploy/
+> 服务器部署路径: /opt/visionguard/deploy/
+> ```
+>
+> **服务器全架构**（未来规划，2026-05-08）：
+> - 硬件：阿里云轻量服务器，Ubuntu 22.04，2C2G，40G，北京，IP `47.94.146.53`
+> - 已运行：Docker + PostgreSQL + Redis + VisionGuard :3000 + SSH/UFW
+> - 计划安装：Nginx 反向代理（80/443 → :3000）+ 静态网站 `/srv/web/`
+> - VisionGuard 将作为 git submodule 挂载在 `/home/admin/web/visionguard/`
+> - 详见：`docs/服务器架构.md`
 
 ### Gitee 推送铁律
 
