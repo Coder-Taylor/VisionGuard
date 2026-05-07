@@ -32,9 +32,11 @@ submission/android/app/build/
 # Go backend
 backend/.env
 submission/.env
+deploy/.env
 _credentials.md
 backend/*.exe
 backend/tmp/
+deploy/**/*.exe
 
 # Claude Code local settings
 .claude/

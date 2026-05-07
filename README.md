@@ -19,15 +19,13 @@
 
 ### 三版本说明
 
-项目分为三个版本，用途不同：
+| 版本 | 本地文件夹 | 内容 |
+|------|-----------|------|
+| **本地测试版** | `app/` + `backend/` | 日常开发调试（`127.0.0.1:3000`） |
+| **提交评委版** | `submission/` | 三端完整源码+APK（交给评委） |
+| **云端部署版** | `deploy/` | 纯后端+Docker，服务器 git pull 直接部署 |
 
-| 版本 | 位置 | 用途 |
-|------|------|------|
-| **本地测试版** | 项目根目录 `app/` + `backend/` | 日常开发、本地调试（`127.0.0.1:3000`） |
-| **提交评委版** | `submission/` | 比赛提交，含三端完整源码+APK（连 `47.94.146.53`） |
-| **云端部署版** | 服务器 `/opt/visionguard/deploy/` | 仅后端+Docker，不含 Android/硬件 |
-
-> **Android 双版本 BASE_URL**：`app/` 用 `127.0.0.1:3000`，`submission/android/` 用 `47.94.146.53:3000`。修改代码时需同步两份。
+> **代码流**：改 `backend/` → `./server-deploy.sh` → 同步到 `deploy/` → 自动推送+部署。
 
 ---
 
@@ -767,13 +765,12 @@ echo -e "\n=== 全部 6 步完成 ==="
 > **前提**：服务器安装 Docker，代码已 push 并 pull 到服务器
 
 ```bash
-# ★ 推荐：从 backend/ 一键推送服务器
+# ★ 一键部署：同步 backend/ → deploy/ → Git 推送 → 服务器自动部署
 ./server-deploy.sh
 
-# 手动部署
+# 服务器上手动操作
 ssh root@47.94.146.53
-cd /opt/visionguard/deploy
-docker compose -f docker-compose.prod.yml up -d --build
+cd /opt/visionguard/deploy && bash deploy.sh
 
 # 验证
 curl http://localhost:3000/api/v1/healthz

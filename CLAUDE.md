@@ -19,25 +19,28 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 ### 三版本架构
 
-项目存在**三个版本**，用途和位置各不同：
+项目存在**三个版本**，各对应一个本地文件夹：
 
-| 版本 | 路径 | 用途 | BASE_URL |
-|------|------|------|----------|
-| **本地测试版** | 项目根目录 `app/` + `backend/` | 日常开发、本地调试 | `http://127.0.0.1:3000/` |
-| **提交评委版** | `submission/` | 比赛提交，含三端完整源码+APK | `http://47.94.146.53:3000/`（Android） |
-| **云端部署版** | 服务器 `/opt/visionguard/deploy/` | 服务器运行，仅后端+Docker | `http://47.94.146.53:3000/` |
+| 版本 | 本地文件夹 | 内容 | BASE_URL |
+|------|-----------|------|----------|
+| **本地测试版** | `app/` + `backend/` | 日常开发调试 | `http://127.0.0.1:3000/` |
+| **提交评委版** | `submission/` | 三端完整源码+APK | `http://47.94.146.53:3000/` |
+| **云端部署版** | `deploy/` | 纯后端 + Docker（服务器直接 git pull 部署） | `http://47.94.146.53:3000/` |
 
-> **submission/ 结构**（评委提交包 = 完整三端）：
+> **各目录结构**：
 > ```
-> submission/
-> ├── cmd/ internal/ go.mod/...    ← 后端 Go 源码
-> ├── android/                     ← Android 完整源码 + 预构建 APK
-> ├── hardware/                    ← 硬件固件（ESP32 + K210）
-> ├── Dockerfile                   ← 后端镜像构建
-> ├── docker-compose.prod.yml      ← 生产环境部署
-> ├── deploy.sh                    ← ★ 一键推送到服务器
-> └── .env                         ← 生产环境变量
+> backend/                         deploy/                          submission/
+> ├── cmd/           ←────同步───→ ├── cmd/                         ├── cmd/ (后端)
+> ├── internal/      ←────同步───→ ├── internal/                    ├── internal/
+> ├── config/        ←────同步───→ ├── config/                      ├── config/
+> ├── go.mod/sum     ←────同步───→ ├── go.mod/sum                   ├── go.mod/sum
+> ├── Dockerfile     ←────同步───→ ├── Dockerfile                   ├── Dockerfile
+> └── compose...     ←────同步───→ ├── compose...                   ├── compose...
+>                                  ├── deploy.sh  (服务器端启动)     ├── android/ (完整APP源码+APK)
+>                                  └── .env       (服务器独有)      └── hardware/ (ESP32+K210)
 > ```
+>
+> **代码流向**：`backend/` 是后端唯一源头 → `server-deploy.sh` 自动同步到 `deploy/` → Git 推送 → 服务器 `git pull` → `cd deploy && docker compose up -d --build`
 
 ### Android 双版本 BASE_URL 铁律
 
@@ -57,33 +60,29 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 ### 同步检查清单
 
-每次改动后同步到 submission 时，**必须验证**：
-- [ ] `submission/android/.../RetrofitClient.kt` BASE_URL 仍是云地址
+每次改动后：
+- [ ] 后端改动 → 运行 `./server-deploy.sh` 同步到 `deploy/` 并推送
+- [ ] Android 改动 → 同步到 `submission/android/`，确认 BASE_URL 仍是云地址
 - [ ] `submission/android/app/build.gradle.kts` minSdk = 31
 - [ ] 新增文件已在 submission 中存在
-- [ ] 后端 Go 文件已同步（如果改了后端）
 
 ### 服务器部署流程
 
 ```bash
-# ★ 推荐：从根目录 backend/ 一键推送服务器
+# ★ 一键部署：同步 backend/ → deploy/ → Git 推送 → 服务器自动部署
 ./server-deploy.sh
 
-# 手动部署
+# 服务器上手动操作
 ssh root@47.94.146.53
-cd /opt/visionguard/deploy
-docker compose -f docker-compose.prod.yml up -d --build
+cd /opt/visionguard/repo && git pull
+cd /opt/visionguard/deploy && bash deploy.sh
 ```
 
-> **服务器目录**（清理后，2026-05-08）：
+> **服务器目录**（2026-05-08）：
 > ```
 > /opt/visionguard/
-> ├── repo/                  ← Git 仓库（完整项目）
-> └── deploy/                ← 运行目录（仅后端，server-deploy.sh 推送）
->     ├── cmd/ internal/ ...
->     ├── Dockerfile
->     ├── docker-compose.prod.yml
->     └── .env
+> ├── repo/        ← Git 仓库（git pull 获取最新代码）
+> └── deploy/      ← 部署运行目录 → ln -s /opt/visionguard/repo/deploy/
 > ```
 
 ### Gitee 推送铁律
