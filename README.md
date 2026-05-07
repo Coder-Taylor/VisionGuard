@@ -767,18 +767,12 @@ echo -e "\n=== 全部 6 步完成 ==="
 > **前提**：服务器安装 Docker，代码已 push 并 pull 到服务器
 
 ```bash
-# 方式一：deploy.sh 一键部署（推荐，从本地推送）
-cd submission && ./deploy.sh
+# ★ 推荐：从 backend/ 一键推送服务器
+./server-deploy.sh
 
-# 方式二：服务器上手动部署
+# 手动部署
 ssh root@47.94.146.53
 cd /opt/visionguard/deploy
-
-# 首次部署需创建 .env
-cp .env.example .env
-nano .env  # 编辑关键配置
-
-# 构建并启动
 docker compose -f docker-compose.prod.yml up -d --build
 
 # 验证

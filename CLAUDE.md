@@ -66,21 +66,11 @@ This file provides guidance to Claude Code when working with code in this reposi
 ### 服务器部署流程
 
 ```bash
-# 方式一：deploy.sh 一键推送（推荐）
-cd submission
-./deploy.sh
+# ★ 推荐：从根目录 backend/ 一键推送服务器
+./server-deploy.sh
 
-# 方式二：手动部署
-# 1. 推送代码到 Gitee
-git push gitee master
-# 2. SSH 到服务器
+# 手动部署
 ssh root@47.94.146.53
-# 3. 拉取最新代码
-cd /opt/visionguard/repo && git pull
-# 4. 复制后端文件到部署目录
-rsync -av --exclude='android/' --exclude='hardware/' \
-    /opt/visionguard/repo/submission/ /opt/visionguard/deploy/
-# 5. 重建 Docker
 cd /opt/visionguard/deploy
 docker compose -f docker-compose.prod.yml up -d --build
 ```
@@ -88,8 +78,8 @@ docker compose -f docker-compose.prod.yml up -d --build
 > **服务器目录**（清理后，2026-05-08）：
 > ```
 > /opt/visionguard/
-> ├── repo/                  ← Git 仓库（完整项目，含 submission/）
-> └── deploy/                ← 云端部署目录（仅后端，不含 android/hardware）
+> ├── repo/                  ← Git 仓库（完整项目）
+> └── deploy/                ← 运行目录（仅后端，server-deploy.sh 推送）
 >     ├── cmd/ internal/ ...
 >     ├── Dockerfile
 >     ├── docker-compose.prod.yml
