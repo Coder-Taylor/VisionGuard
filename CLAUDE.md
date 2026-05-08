@@ -267,6 +267,13 @@ git push gitee master
 | AI | **drugName UTF-8 截断修复 (2026-05-06)**：豆包返回中文 drugName 时 byte-based `drugName[:20]` 切到多字节字符中间 → DB UTF-8 编码错误。改为 rune-based `[]rune(drugName)[:20]`。同步修复 submission。
 | AI | **云端重新部署 (2026-05-06)**：旧容器名 `visionguard-*`，新 `cloud-deploy-*`，端口冲突 + volume 迁移（pgdata→visionguard_pgdata）。部署命令：`cd deploy && docker compose -f docker-compose.prod.yml up -d --build`。
 
+### 2026-05-08 — ESP32 OCR 上传崩溃修复
+
+- **硬件同学反馈**：ESP32 烧录后 OCR 测试阶段 `httpPostMultipartImage` 崩溃重启
+- **根因**：`http.POST("")` + `getStreamPtr()` 流式模式 — 库发送空 body 后立即读响应，服务器等完整 body 未响应 → `_tcp` 变 NULL → 写空指针 → LoadProhibited
+- **修复**：替换为 WiFiClient 直发 — malloc 拼装完整 multipart body → TCP connect → 一次性 write
+- 两处固件同步：`hardware/esp32/esp32sense.ino` + `submission/hardware/esp32/esp32sense.ino`
+
 ### 当前状态 (2026-05-06 深夜)
 
 - 后端全部功能编译通过（`go build ./...` 成功）
