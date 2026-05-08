@@ -213,14 +213,7 @@ func (s *OcrService) RecordFeedback(imageID, suggestionID, feedback, comment str
 
 // ======================== 历史识别记录查询 (九.7) ========================
 
-func (s *OcrService) ListRecords(elderID string, page, pageSize int) (map[string]interface{}, error) {
-	var total int64
-	s.db.Model(&model.OcrRecord{}).Where("elder_id = ?", elderID).Count(&total)
-
-	var records []model.OcrRecord
-	s.db.Where("elder_id = ?", elderID).Order("created_at desc").
-		Offset((page - 1) * pageSize).Limit(pageSize).Find(&records)
-
+func (s *OcrService) ListRecords(userID uint, elderID string, page, pageSize int) (map[string]interface{}, error) {
 	type RecordItem struct {
 		TaskID       string `json:"taskId"`
 		ImageID      string `json:"imageId"`
@@ -231,6 +224,25 @@ func (s *OcrService) ListRecords(elderID string, page, pageSize int) (map[string
 		Status       string `json:"status"`
 		CreatedAt    string `json:"createdAt"`
 	}
+
+	query := s.db.Model(&model.OcrRecord{})
+	if elderID != "" {
+		query = query.Where("elder_id = ?", elderID)
+	} else if userID > 0 {
+		var elderIDs []string
+		s.db.Model(&model.Guardianship{}).Where("user_id = ?", userID).Pluck("elder_id", &elderIDs)
+		if len(elderIDs) == 0 {
+			return map[string]interface{}{"total": int64(0), "page": page, "pageSize": pageSize, "list": []RecordItem{}}, nil
+		}
+		query = query.Where("elder_id IN ?", elderIDs)
+	}
+
+	var total int64
+	query.Count(&total)
+
+	var records []model.OcrRecord
+	query.Order("created_at desc").
+		Offset((page - 1) * pageSize).Limit(pageSize).Find(&records)
 
 	var items []RecordItem
 	for _, r := range records {

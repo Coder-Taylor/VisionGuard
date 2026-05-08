@@ -202,7 +202,12 @@ func (h *OcrHandler) ListRecords(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
 	pageSize := c.QueryInt("pageSize", 20)
 
-	data, err := h.svc.ListRecords(elderID, page, pageSize)
+	userID := uint(0)
+	if uid, ok := c.Locals("userId").(uint); ok {
+		userID = uid
+	}
+
+	data, err := h.svc.ListRecords(userID, elderID, page, pageSize)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"code": 500, "message": err.Error()})
 	}

@@ -187,6 +187,28 @@ internal fun MapScreen(
                                             .color(Color.parseColor("#165DFF"))
                                             .width(8f)
                                     )
+                                    // 起点标记
+                                    map.addMarker(
+                                        MarkerOptions()
+                                            .position(points.first())
+                                            .title("起点")
+                                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
+                                    )
+                                    // 终点标记
+                                    map.addMarker(
+                                        MarkerOptions()
+                                            .position(points.last())
+                                            .title("终点")
+                                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
+                                    )
+                                    // 中间途经点
+                                    for (i in 1 until points.size - 1) {
+                                        map.addMarker(
+                                            MarkerOptions()
+                                                .position(points[i])
+                                                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
+                                        )
+                                    }
                                     points.forEach { boundsBuilder.include(it) }
                                     hasPoint = true
                                 }
