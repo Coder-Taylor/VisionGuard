@@ -142,12 +142,13 @@ func (s *OcrService) GetOcrResult(taskID string) (map[string]interface{}, error)
 	if record.Status == "completed" {
 		result["medicineName"] = record.MedicineName
 		result["ocrText"] = record.OCRText
-		result["specification"] = record.Specification
-		result["indications"] = record.Indications
-		result["dosage"] = record.Dosage
-		result["contraindications"] = record.Contraindications
+		result["medicineSpec"] = record.Specification
+		result["medicineUsage"] = record.Indications
+		result["medicineDosage"] = record.Dosage
+		result["medicineContraindications"] = record.Contraindications
 		result["confidence"] = record.Confidence
 		result["riskLevel"] = record.RiskLevel
+		result["suggestion"] = record.Suggestions
 	} else if record.Status == "failed" {
 		result["failReason"] = record.FailReason
 		result["failDetail"] = record.FailDetail

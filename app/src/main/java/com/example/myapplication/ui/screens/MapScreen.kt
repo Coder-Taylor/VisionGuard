@@ -187,6 +187,8 @@ internal fun MapScreen(
                                             .color(Color.parseColor("#165DFF"))
                                             .width(8f)
                                     )
+                                    points.forEach { boundsBuilder.include(it) }
+                                    hasPoint = true
                                 }
                             }
                         } catch (_: Exception) {}
@@ -203,7 +205,7 @@ internal fun MapScreen(
         }
     }
 
-    LaunchedEffect(Unit) { loadAndDisplay() }
+    LaunchedEffect(aMap) { if (aMap != null) loadAndDisplay() }
 
     Scaffold(
         modifier = modifier,
