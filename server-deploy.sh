@@ -37,5 +37,5 @@ ssh "$SERVER" "cd $SERVER_DIR && docker compose -f docker-compose.prod.yml down 
 
 echo ""
 echo "=== 部署完成 ==="
-echo "验证: curl http://47.94.146.53:3000/api/v1/healthz"
+echo "验证: curl http://47.94.146.53/vg/api/v1/healthz"
 echo "日志: ssh $SERVER 'docker compose -f $SERVER_DIR/docker-compose.prod.yml logs -f backend'"

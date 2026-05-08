@@ -18,7 +18,7 @@
 #define I2S_LRC  4
 #define SD_CS    21
 
-const char* BASE_URL = "http://47.94.146.53:3000";
+const char* BASE_URL = "http://47.94.146.53/vg";
 const char* ssid     = "wuiPhone 16";
 const char* password = "12345ssDLH";
 

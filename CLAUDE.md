@@ -24,8 +24,8 @@ This file provides guidance to Claude Code when working with code in this reposi
 | 版本 | 本地文件夹 | 内容 | BASE_URL |
 |------|-----------|------|----------|
 | **本地测试版** | `app/` + `backend/` | 日常开发调试 | `http://127.0.0.1:3000/` |
-| **提交评委版** | `submission/` | 三端完整源码+APK | `http://47.94.146.53:3000/` |
-| **云端部署版** | `deploy/` | 纯后端 + Docker（rsync 直接推送，无 git） | `http://47.94.146.53:3000/` |
+| **提交评委版** | `submission/` | 三端完整源码+APK | `http://47.94.146.53/vg/` |
+| **云端部署版** | `deploy/` | 纯后端 + Docker（rsync 直接推送，无 git） | `http://47.94.146.53/vg/` |
 
 > **各目录结构**：
 > ```
@@ -49,14 +49,14 @@ This file provides guidance to Claude Code when working with code in this reposi
 | 版本 | RetrofitClient.kt 位置 | BASE_URL |
 |------|------------------------|----------|
 | **本地测试版** | `app/.../RetrofitClient.kt` | `http://127.0.0.1:3000/` |
-| **提交评委版** | `submission/android/.../RetrofitClient.kt` | `http://47.94.146.53:3000/` |
+| **提交评委版** | `submission/android/.../RetrofitClient.kt` | `http://47.94.146.53/vg/` |
 
 > **规则**：
 > 1. 每次修改 Android 代码，**必须同时更新两份源码**
-> 2. 本地版永远用 `127.0.0.1:3000`，submission 版永远用 `47.94.146.53:3000`
+> 2. 本地版永远用 `127.0.0.1:3000`，submission 版永远用 `47.94.146.53/vg`
 > 3. 同步时**先确认 submission 的 BASE_URL 没被覆盖**，如果被覆盖了立即改回来
 > 4. 构建评委版 APK 从 `submission/android/` 构建，构建本地测试 APK 从根目录 `app/` 构建
-> 5. **默认装云版**：没有特殊说明时，安装到手机的 APK 必须是 submission 版（连 `47.94.146.53:3000`）
+> 5. **默认装云版**：没有特殊说明时，安装到手机的 APK 必须是 submission 版（连 `47.94.146.53/vg`）
 
 ### 同步检查清单
 
@@ -73,9 +73,17 @@ This file provides guidance to Claude Code when working with code in this reposi
 ./server-deploy.sh
 ```
 
-> **服务器上只有一个 deploy/ 目录，没有 git 仓库**：
+> **服务器架构（2026-05-08）**：
 > ```
-> /opt/visionguard/deploy/    ← 部署运行目录（rsync 直接推送）
+> Nginx (:80)  ← 唯一对外入口
+> ├── /              → :8080  个人站（web-backend, systemd）
+> ├── /vg/api/       → :3000  VisionGuard API（Docker）
+> └── /vg/           → 静态文件  VisionGuard 管理网页
+> ```
+>
+> **部署目录**（rsync 直接推送，服务器无 git 仓库）：
+> ```
+> /opt/visionguard/deploy/
 >     ├── cmd/ internal/ ...  ← Go 源码
 >     ├── Dockerfile
 >     ├── docker-compose.prod.yml
@@ -85,16 +93,13 @@ This file provides guidance to Claude Code when working with code in this reposi
 >
 > `web-register.json`（根目录）供服务器 Web AI 识别本项目部署配置。
 >
-> **服务器全架构**（未来规划，2026-05-08）：
-> - 硬件：阿里云轻量服务器，Ubuntu 22.04，2C2G，40G，北京，IP `47.94.146.53`
-> - 已运行：Docker + PostgreSQL + Redis + VisionGuard :3000 + SSH/UFW
-> - 计划安装：Nginx 反向代理（80/443 → :3000）+ 静态网站 `/srv/web/`
-> - VisionGuard 将作为 git submodule 挂载在 `/home/admin/web/visionguard/`
-> - 详见：`docs/服务器架构.md`
+> **服务器硬件**：阿里云轻量服务器，Ubuntu 22.04，2C2G，40G，北京，IP `47.94.146.53`
 
-### Gitee 推送铁律
+### 代码推送铁律
 
-**代码仓库**：https://gitee.com/taylorchengitee/vision-guard
+**代码仓库**：
+- GitHub：https://github.com/Coder-Taylor/VisionGuard
+- Gitee：https://gitee.com/taylorchengitee/vision-guard
 
 **每次代码修改完成后必须执行**：
 
@@ -109,9 +114,10 @@ git push gitee master
 ```
 
 > 规则：
-> 1. 每轮对话结束前，若有代码改动，必须 commit + push 到 Gitee
-> 2. git add 时排除 submission 的 build 产物（Windows 文件名过长限制）
-> 3. 提交信息用中文，格式：`feat: xxx` / `fix: xxx` / `docs: xxx`
+> 1. 每轮对话结束前，若有代码改动，必须 commit + push 到 **GitHub + Gitee 双仓库**
+> 2. 服务器拉取代码以 **Gitee** 为准（国内服务器访问 Gitee 更快）
+> 3. git add 时排除 submission 的 build 产物（Windows 文件名过长限制）
+> 4. 提交信息用中文，格式：`feat: xxx` / `fix: xxx` / `docs: xxx`
 
 ### Docker 中国网络铁律
 
@@ -157,7 +163,7 @@ git push gitee master
 ### 项目信息
 
 - **项目名**：VisionGuard
-- **生产服务器**：`http://47.94.146.53:3000/`
+- **生产服务器**：`http://47.94.146.53/vg/`（Nginx 80 端口统一入口）
 - **本地开发**：`http://localhost:3000/`
 - **端口**：统一 3000
 - **测试账号**（云服务器）：
@@ -165,7 +171,8 @@ git push gitee master
   - 用户名 `ocrtest` / 密码 `test123456`（后端开发测试用）
 - **豆包 API Key**：`ark-632ca022-46e7-4e0d-ae10-fc2cd9e1a2fa-21961`（已写入 .env）
 - **硬件 WiFi**：SSID `wuiPhone 16`，密码 `12345ssDLH`
-- **Gitee 仓库**：https://gitee.com/taylorchengitee/vision-guard
+- **GitHub 仓库**：https://github.com/Coder-Taylor/VisionGuard
+- **Gitee 仓库**：https://gitee.com/taylorchengitee/vision-guard（服务器拉取以 Gitee 为准）
 - **硬件团队最新代码**：`hardware/esp32/esp32sense.ino`（已对齐 v1 API）+ `hardware/k210/main.py`
 
 ### 已完成的工作
@@ -358,12 +365,19 @@ http://127.0.0.1:3000/
 
 ### 端口/环境对照
 
-| | 本地开发 | 云服务器 |
+| | 本地开发 | 云服务器（Nginx 代理） |
 |------|------|------|
-| 地址 | `http://localhost:3000` | `http://47.94.146.53:3000` |
-| 端口 | 3000 | 3000 |
+| 用户/APP 访问地址 | `http://localhost:3000` | `http://47.94.146.53/vg/` |
+| 后端实际端口 | 3000 | 3000（仅 127.0.0.1，Nginx 内部代理） |
+| 硬件访问地址 | `http://localhost:3000` | `http://47.94.146.53/vg` |
 | DB_HOST | `localhost` | `postgres`（Docker 服务名） |
 | REDIS_HOST | `localhost` | `redis`（Docker 服务名） |
+
+> **URL 变更 (2026-05-08)**：生产环境接入 Nginx 反向代理。
+> - 旧：`http://47.94.146.53:3000/api/v1/...`
+> - 新：`http://47.94.146.53/vg/api/v1/...`
+> - Nginx 将 `/vg/` 前缀剥离后转发给 VisionGuard :3000
+
 
 ### 文档索引（docs/，共 12 份）
 

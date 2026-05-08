@@ -2,8 +2,10 @@
 
 面向视障与老年群体的胸挂式智能设备系统。**硬件本地安全 + 云端数据增强 + APP 远程监护**，三端协作。
 
+> **GitHub 仓库**：[github.com/Coder-Taylor/VisionGuard](https://github.com/Coder-Taylor/VisionGuard)
 > **Gitee 仓库**：[gitee.com/taylorchengitee/vision-guard](https://gitee.com/taylorchengitee/vision-guard)
-> **生产服务器**：`http://47.94.146.53:3000/`
+> **服务器拉取**：以 Gitee 为准（国内服务器访问更快）
+> **生产服务器**：`http://47.94.146.53/vg/`（Nginx 80 端口，内部代理 → VisionGuard :3000）
 > **本地开发**：`http://localhost:3000/`
 
 ### 给队友的快速指引
@@ -108,7 +110,7 @@
 
 | | 本地开发 | 云服务器 |
 |------|------|------|
-| 地址 | `http://localhost:3000` | `http://47.94.146.53:3000` |
+| 地址 | `http://localhost:3000` | `http://47.94.146.53/vg`（Nginx 代理） |
 | 数据库 | 本地直装 PostgreSQL + Redis | Docker 容器（自动启动） |
 | 用途 | 写代码 + 本地测试 + 硬件联调 | 正式上线，对外开放 |
 | 部署方式 | `go run cmd/server/main.go` | `./deploy.sh`（Docker） |
@@ -352,7 +354,7 @@ XOR 0x4B Challenge-Response → 设备 JWT (24h 有效)
 ## 八、项目结构
 
 ```
-vision-hub/                          # ★ Gitee: gitee.com/taylorchengitee/vision-guard
+vision-hub/                          # ★ GitHub: Coder-Taylor/VisionGuard  ★ Gitee: taylorchengitee/vision-guard
 │
 ├── apk/                            # 📱 发布 APK（直接安装）
 │   └── VisionGuard-v1.4.1-local.apk # ★ 本地版 (127.0.0.1:3000)
@@ -377,7 +379,7 @@ vision-hub/                          # ★ Gitee: gitee.com/taylorchengitee/visi
 │   ├── internal/                   #    Go 后端源码（与 backend/ 同步）
 │   ├── Dockerfile + docker-compose.prod.yml + .env.example
 │   ├── android/
-│   │   └── apk/VisionGuard-v1.4-cloud.apk  # ★ 云版 (47.94.146.53:3000)
+│   │   └── apk/VisionGuard-v1.4-cloud.apk  # ★ 云版 (47.94.146.53/vg)
 │   └── hardware/                   #    硬件固件副本
 │   └── Dockerfile                  #    Docker 生产部署
 │
@@ -761,7 +763,7 @@ echo -e "\n=== 全部 6 步完成 ==="
 <a id="ch13"></a>
 ## 十三、云服务器部署
 
-> **生产地址**：`http://47.94.146.53:3000`
+> **生产地址**：`http://47.94.146.53/vg`（Nginx 80 端口统一入口）
 > **前提**：服务器安装 Docker，代码已 push 并 pull 到服务器
 
 ```bash
@@ -816,7 +818,7 @@ docker compose -f docker-compose.prod.yml up -d
 | 硬件对接文档 | ✅ | 含本地测试指南 + curl 脚本 + 故障排查 |
 | Android 对接文档 | ✅ | 77 路由 + 业务流 + DB + 安全 + 部署 |
 | Docker 部署 | ✅ | 多阶段构建 + compose + 一键脚本 |
-| 云上线 | ✅ | `http://47.94.146.53:3000/` |
+| 云上线 | ✅ | `http://47.94.146.53/vg/`（Nginx 代理） |
 | OCR/LLM 服务 | Mock | 异步 3s/5s 延时，待对接真实服务 |
 | 推送渠道 | Stub | 短信/语音电话推送待对接 |
 | 电子围栏/健康数据/监护人邀请等 UI | 待开发 | API 客户端已定义，属于锦上添花功能 |

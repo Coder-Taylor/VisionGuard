@@ -13,7 +13,7 @@ cp local.properties.example local.properties
 # 编辑 app/src/main/java/.../api/RetrofitClient.kt
 # ApiConfig.BASE_URL:
 #   本地联调: http://127.0.0.1:3000/  (配合 adb reverse)
-#   云服务器: http://47.94.146.53:3000/
+#   云服务器: http://47.94.146.53/vg/
 
 # 3. 构建
 ./gradlew :app:assembleRelease
@@ -22,7 +22,7 @@ cp local.properties.example local.properties
 
 ## 预构建 APK
 
-`apk/VisionGuard-v1.4.apk` 已配置连接云服务器 `http://47.94.146.53:3000/`，可直接安装。
+`apk/VisionGuard-v1.4.apk` 已配置连接云服务器 `http://47.94.146.53/vg/`，可直接安装。
 
 ## 技术栈
 

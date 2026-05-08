@@ -21,10 +21,9 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 // object = Java 单例: 相当于 private 构造 + static final INSTANCE
 object ApiConfig {
-    // 真机测试: 电脑连手机热点时, 手机通过电脑 IP 访问后端
-    // 模拟器: 改回 "http://10.0.2.2:3000/"
+    // 生产环境: 通过 Nginx 80 端口统一入口，/vg/ 前缀代理到 VisionGuard :3000
     // 注意: 所有 API 路径均已包含 api/v1/ 前缀，BASE_URL 不要重复加
-    const val BASE_URL = "http://47.94.146.53:3000/"
+    const val BASE_URL = "http://47.94.146.53/vg/"
 }
 
 private class AuthInterceptor : Interceptor {
