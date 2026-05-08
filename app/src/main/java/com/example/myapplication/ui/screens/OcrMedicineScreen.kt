@@ -53,16 +53,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.net.Uri
-import android.util.Base64
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.FileProvider
 import com.example.myapplication.api.OcrRecordData
 import com.example.myapplication.api.OcrResultData
-import com.example.myapplication.api.OcrUploadReq
 import com.example.myapplication.api.RetrofitClient
 import com.example.myapplication.ui.gradientBackground
 import com.example.myapplication.ui.AlertRed
@@ -81,12 +73,8 @@ import com.example.myapplication.ui.components.EmptyState
 import com.example.myapplication.ui.components.StatusTag
 import com.example.myapplication.util.ErrorHelper
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
-import java.io.File
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
@@ -103,13 +91,6 @@ internal fun OcrMedicineScreen(
     var isRefreshing by remember { mutableStateOf(false) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
     var showHardwareHint by remember { mutableStateOf(false) }
-
-    val context = LocalContext.current
-    // Camera capture state (launcher defined after loadRecords)
-    var photoUri by remember { mutableStateOf<Uri?>(null) }
-    var isUploading by remember { mutableStateOf(false) }
-    var uploadMsg by remember { mutableStateOf("") }
-    var uploadError by remember { mutableStateOf<String?>(null) }
 
     // Detail dialog
     var detailTaskId by remember { mutableStateOf<String?>(null) }
@@ -159,89 +140,6 @@ internal fun OcrMedicineScreen(
         }
     }
 
-    // Camera launcher (after loadRecords so it can reference it)
-    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-        if (success && photoUri != null) {
-            scope.launch {
-                isUploading = true
-                uploadMsg = "正在上传识别..."
-                uploadError = null
-                try {
-                    val inputStream = context.contentResolver.openInputStream(photoUri!!)
-                    val bitmap = BitmapFactory.decodeStream(inputStream)
-                    inputStream?.close()
-                    if (bitmap == null) {
-                        uploadError = "无法读取照片"
-                        isUploading = false
-                        return@launch
-                    }
-                    val maxDim = 1024
-                    val w = bitmap.width
-                    val h = bitmap.height
-                    val scale = if (w > h) maxDim.toFloat() / w else maxDim.toFloat() / h
-                    val scaledBitmap = if (scale < 1f) {
-                        Bitmap.createScaledBitmap(bitmap, (w * scale).toInt(), (h * scale).toInt(), true)
-                    } else bitmap
-
-                    val baos = ByteArrayOutputStream()
-                    scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 80, baos)
-                    val jpegBytes = baos.toByteArray()
-                    baos.close()
-
-                    val base64 = Base64.encodeToString(jpegBytes, Base64.NO_WRAP)
-                    val fileUrl = "data:image/jpeg;base64,$base64"
-
-                    uploadMsg = "豆包 AI 识别中..."
-                    val resp = withContext(Dispatchers.IO) {
-                        RetrofitClient.ocrApi.uploadImageJson(
-                            OcrUploadReq(
-                                elderId = null,
-                                imageCategory = "medicine",
-                                fileUrl = fileUrl,
-                                fileSize = jpegBytes.size.toLong(),
-                                width = scaledBitmap.width,
-                                height = scaledBitmap.height,
-                            )
-                        )
-                    }
-                    if (resp.isSuccessful) {
-                        val taskId = resp.body()?.data?.taskId
-                        if (taskId != null) {
-                            for (i in 1..10) {
-                                delay(2000)
-                                uploadMsg = "识别中...(${i * 2}s)"
-                                val pollResp = withContext(Dispatchers.IO) {
-                                    RetrofitClient.ocrApi.pollOcrTask(taskId)
-                                }
-                                val status = pollResp.body()?.data?.status
-                                if (status == "completed" || status == "failed") {
-                                    uploadMsg = if (status == "completed") "识别完成！" else "识别失败"
-                                    break
-                                }
-                            }
-                        }
-                        uploadMsg = "识别完成"
-                        loadRecords()
-                    } else {
-                        uploadError = "上传失败: ${resp.code()}"
-                    }
-                } catch (e: Exception) {
-                    uploadError = ErrorHelper.userMessage(e, "uploadOcr")
-                }
-                delay(1500)
-                isUploading = false
-            }
-        }
-    }
-
-    fun takePhoto() {
-        val file = File(context.cacheDir, "ocr_${System.currentTimeMillis()}.jpg")
-        file.parentFile?.mkdirs()
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-        photoUri = uri
-        cameraLauncher.launch(uri)
-    }
-
     LaunchedEffect(Unit) { loadRecords() }
 
     val pullRefreshState = rememberPullRefreshState(
@@ -268,24 +166,6 @@ internal fun OcrMedicineScreen(
             confirmButton = {
                 TextButton(onClick = { showHardwareHint = false }) { Text("知道了", color = PrimaryBlue) }
             },
-        )
-    }
-
-    // Upload progress dialog
-    if (isUploading) {
-        AlertDialog(
-            onDismissRequest = {},
-            title = { Text("拍照识别", fontWeight = FontWeight.Bold) },
-            text = {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(uploadMsg, fontSize = 14.sp, color = TextPrimary)
-                    if (uploadError != null) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(uploadError!!, fontSize = 12.sp, color = AlertRed)
-                    }
-                }
-            },
-            confirmButton = {},
         )
     }
 
@@ -369,7 +249,7 @@ internal fun OcrMedicineScreen(
                 item {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Card(
-                            modifier = Modifier.weight(1f).clickable { takePhoto() },
+                            modifier = Modifier.weight(1f).clickable { showHardwareHint = true },
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(containerColor = White),
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -385,8 +265,8 @@ internal fun OcrMedicineScreen(
                                     Icon(Icons.Outlined.CameraAlt, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(22.dp))
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text("拍照识别", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                                Text("拍摄药品照片", fontSize = 11.sp, color = TextSecondary)
+                                Text("硬件拍照", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                                Text("查看识别流程", fontSize = 11.sp, color = TextSecondary)
                             }
                         }
                         Card(

@@ -8,11 +8,7 @@ import retrofit2.http.*
  */
 interface OcrApi {
 
-    @POST("api/v1/ocr/image")
-    @retrofit2.http.Headers("Content-Type: application/json")
-    suspend fun uploadImageJson(@Body req: OcrUploadReq): Response<ApiResponse<OcrImageData>>
-
-    @POST("api/v1/ocr/recognize")
+@POST("api/v1/ocr/recognize")
     suspend fun createOcrTask(@Body req: RecognizeReq): Response<ApiResponse<OcrTaskData>>
 
     @GET("api/v1/ocr/result/{taskId}")
@@ -56,22 +52,6 @@ data class FeedbackReq(
 )
 
 // ---- Response types ----
-
-data class OcrUploadReq(
-    val elderId: String?,
-    val imageCategory: String = "medicine",
-    val fileUrl: String,
-    val fileSize: Long? = null,
-    val width: Int? = null,
-    val height: Int? = null,
-    val format: String? = "jpeg",
-)
-
-data class OcrImageData(
-    val imageId: String?,
-    val url: String?,
-    val taskId: String?,
-)
 
 data class OcrTaskData(
     val taskId: String?,
