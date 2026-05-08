@@ -61,8 +61,9 @@ type ImageUploadReq struct {
 }
 
 type ImageUploadResp struct {
-	ImageID     string `json:"imageId"`
-	FileURL     string `json:"fileUrl"`
+	ImageID      string `json:"imageId"`
+	TaskID       string `json:"taskId"`
+	FileURL      string `json:"fileUrl"`
 	ThumbnailURL string `json:"thumbnailUrl"`
 	UploadedAt  string `json:"uploadedAt"`
 }
@@ -92,6 +93,7 @@ func (s *OcrService) UploadImage(req ImageUploadReq) (*ImageUploadResp, error) {
 
 	return &ImageUploadResp{
 		ImageID:      imageID,
+		TaskID:       record.TaskID,
 		FileURL:      req.FileURL,
 		ThumbnailURL: req.ThumbnailURL,
 		UploadedAt:   time.Now().Format(time.RFC3339),
@@ -216,8 +218,8 @@ func (s *OcrService) RecordFeedback(imageID, suggestionID, feedback, comment str
 func (s *OcrService) ListRecords(userID uint, elderID string, page, pageSize int) (map[string]interface{}, error) {
 	type RecordItem struct {
 		TaskID       string `json:"taskId"`
-		ImageID      string `json:"imageId"`
-		ThumbnailURL string `json:"thumbnailUrl"`
+		ImageID       string `json:"imageId"`
+		ThumbnailURL  string `json:"thumbnailUrl"`
 		MedicineName string `json:"medicineName"`
 		OcrText      string `json:"ocrText"`
 		RiskLevel    string `json:"riskLevel"`
