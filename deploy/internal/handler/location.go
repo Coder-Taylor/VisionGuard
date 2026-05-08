@@ -35,10 +35,10 @@ func (h *LocationHandler) GetTrajectory(c *fiber.Ctx) error {
 	startStr := c.Query("start")
 	endStr := c.Query("end")
 
-	start, _ := time.Parse(time.RFC3339, startStr)
-	end, _ := time.Parse(time.RFC3339, endStr)
+	start := parseTime(startStr)
+	end := parseTime(endStr)
 	if start.IsZero() {
-		start = time.Now().Add(-6 * time.Hour)
+		start = time.Now().Add(-24 * time.Hour)
 	}
 	if end.IsZero() {
 		end = time.Now()
@@ -69,8 +69,8 @@ func (h *LocationHandler) GetAlertMarkers(c *fiber.Ctx) error {
 	startStr := c.Query("start")
 	endStr := c.Query("end")
 
-	start, _ := time.Parse(time.RFC3339, startStr)
-	end, _ := time.Parse(time.RFC3339, endStr)
+	start := parseTime(startStr)
+	end := parseTime(endStr)
 	if start.IsZero() {
 		start = time.Now().Add(-24 * time.Hour)
 	}
@@ -156,12 +156,31 @@ func (h *LocationHandler) QueryHealthData(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
 	pageSize := c.QueryInt("pageSize", 20)
 
-	start, _ := time.Parse(time.RFC3339, startStr)
-	end, _ := time.Parse(time.RFC3339, endStr)
+	start := parseTime(startStr)
+	end := parseTime(endStr)
 
 	data, err := h.svc.QueryHealthData(elderID, deviceID, dataType, start, end, page, pageSize)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"code": 500, "message": err.Error()})
 	}
 	return c.JSON(fiber.Map{"code": 0, "data": data})
+}
+
+// parseTime 尝试多种时间格式（Android 发无时区 ISO，RFC3339 带时区）
+func parseTime(s string) time.Time {
+	if s == "" {
+		return time.Time{}
+	}
+	layouts := []string{
+		time.RFC3339,
+		"2006-01-02T15:04:05",
+		"2006-01-02 15:04:05",
+		"2006-01-02",
+	}
+	for _, layout := range layouts {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t
+		}
+	}
+	return time.Time{}
 }

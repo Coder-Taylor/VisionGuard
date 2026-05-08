@@ -7,27 +7,31 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-visionhub}
       POSTGRES_DB: ${DB_NAME:-visionhub}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - visionguard_pgdata:/var/lib/postgresql/data
     restart: always
 
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     restart: always
 
   backend:
     build: .
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     env_file:
       - .env
+    volumes:
+      - uploads_data:/app/uploads
     depends_on:
       - postgres
       - redis
     restart: always
 
 volumes:
-  pgdata:
+  visionguard_pgdata:
+    external: true
+  uploads_data:

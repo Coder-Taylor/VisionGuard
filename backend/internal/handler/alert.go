@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"time"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/jry21223/vision-hub/backend/internal/service"
 )
@@ -73,13 +71,8 @@ func (h *AlertHandler) ListAlerts(c *fiber.Ctx) error {
 
 	startStr := c.Query("start")
 	endStr := c.Query("end")
-	var start, end time.Time
-	if startStr != "" {
-		start, _ = time.Parse(time.RFC3339, startStr)
-	}
-	if endStr != "" {
-		end, _ = time.Parse(time.RFC3339, endStr)
-	}
+	start := parseTime(startStr)
+	end := parseTime(endStr)
 
 	userID := uint(0)
 	if uid, ok := c.Locals("userId").(uint); ok {
