@@ -2,9 +2,7 @@
 
 面向视障与老年群体的胸挂式智能设备系统。**硬件本地安全 + 云端数据增强 + APP 远程监护**，三端协作。
 
-> **GitHub 仓库**：[github.com/Coder-Taylor/VisionGuard](https://github.com/Coder-Taylor/VisionGuard)
 > **Gitee 仓库**：[gitee.com/taylorchengitee/vision-guard](https://gitee.com/taylorchengitee/vision-guard)
-> **服务器拉取**：以 Gitee 为准（国内服务器访问更快）
 > **生产服务器**：`http://47.94.146.53/vg/`（Nginx 80 端口，内部代理 → VisionGuard :3000）
 > **本地开发**：`http://localhost:3000/`
 
@@ -354,7 +352,7 @@ XOR 0x4B Challenge-Response → 设备 JWT (24h 有效)
 ## 八、项目结构
 
 ```
-vision-hub/                          # ★ GitHub: Coder-Taylor/VisionGuard  ★ Gitee: taylorchengitee/vision-guard
+vision-hub/                          # ★ Gitee: gitee.com/taylorchengitee/vision-guard
 │
 ├── apk/                            # 📱 发布 APK（直接安装）
 │   └── VisionGuard-v1.4.1-local.apk # ★ 本地版 (127.0.0.1:3000)

@@ -97,9 +97,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 ### 代码推送铁律
 
-**代码仓库**：
-- GitHub：https://github.com/Coder-Taylor/VisionGuard
-- Gitee：https://gitee.com/taylorchengitee/vision-guard
+**代码仓库**：https://gitee.com/taylorchengitee/vision-guard
 
 **每次代码修改完成后必须执行**：
 
@@ -108,14 +106,13 @@ This file provides guidance to Claude Code when working with code in this reposi
 git add -A -- ':!submission/android/app/build' ':!submission/android/.gradle'
 git commit -m "feat/fix: 描述"
 
-# 2. 推送（同步到 GitHub + Gitee）
-git push origin master
+# 2. 推送到 Gitee
 git push gitee master
 ```
 
 > 规则：
-> 1. 每轮对话结束前，若有代码改动，必须 commit + push 到 **GitHub + Gitee 双仓库**
-> 2. 服务器拉取代码以 **Gitee** 为准（国内服务器访问 Gitee 更快）
+> 1. 每轮对话结束前，若有代码改动，必须 commit + push 到 Gitee
+> 2. 服务器从 Gitee 拉取代码
 > 3. git add 时排除 submission 的 build 产物（Windows 文件名过长限制）
 > 4. 提交信息用中文，格式：`feat: xxx` / `fix: xxx` / `docs: xxx`
 
@@ -171,8 +168,7 @@ git push gitee master
   - 用户名 `ocrtest` / 密码 `test123456`（后端开发测试用）
 - **豆包 API Key**：`ark-632ca022-46e7-4e0d-ae10-fc2cd9e1a2fa-21961`（已写入 .env）
 - **硬件 WiFi**：SSID `wuiPhone 16`，密码 `12345ssDLH`
-- **GitHub 仓库**：https://github.com/Coder-Taylor/VisionGuard
-- **Gitee 仓库**：https://gitee.com/taylorchengitee/vision-guard（服务器拉取以 Gitee 为准）
+- **Gitee 仓库**：https://gitee.com/taylorchengitee/vision-guard
 - **硬件团队最新代码**：`hardware/esp32/esp32sense.ino`（已对齐 v1 API）+ `hardware/k210/main.py`
 
 ### 已完成的工作
