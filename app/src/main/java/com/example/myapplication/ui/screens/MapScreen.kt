@@ -185,8 +185,7 @@ internal fun MapScreen(
                                         PolylineOptions()
                                             .addAll(points)
                                             .color(Color.parseColor("#165DFF"))
-                                            .width(6f)
-                                            .setDottedLine(true)
+                                            .width(8f)
                                     )
                                 }
                             }
