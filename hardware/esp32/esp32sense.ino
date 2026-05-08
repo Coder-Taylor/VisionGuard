@@ -134,62 +134,100 @@ void uploadObstacleAlarm(int d) {
 
 // ==================== OCR 药品识别 ====================
 
+// 直接通过 WiFiClient 发送 multipart/form-data 图片上传
+// 避免 HTTPClient + getStreamPtr() 空指针崩溃问题:
+//   http.POST("") 发送空 body 后库立即读响应, 但服务器在等 Content-Length 字节 → 超时 → _tcp=NULL → 崩溃
 String httpPostMultipartImage(String path, const uint8_t* jpegData, int jpegLen, String deviceId, String category) {
   if (!wifiOnline || jpegData == nullptr || jpegLen == 0) return "";
 
-  WiFiClient client;
-  HTTPClient http;
-  String url = String(BASE_URL) + path;
-
   String boundary = "----VisionGuard" + String(millis());
-  String boundaryStart = "--" + boundary;
-  String boundaryEnd   = "--" + boundary + "--\r\n";
+  String boundaryLine = "--" + boundary;
 
-  // 构造 multipart body
-  // Part 1: image 文件
-  String partHeader1 = boundaryStart + "\r\n";
-  partHeader1 += "Content-Disposition: form-data; name=\"image\"; filename=\"photo.jpg\"\r\n";
-  partHeader1 += "Content-Type: image/jpeg\r\n\r\n";
-  String partFooter1 = "\r\n";
+  // 组装 multipart body 各部分 (字符串部分)
+  String part1Head = boundaryLine + "\r\n";
+  part1Head += "Content-Disposition: form-data; name=\"image\"; filename=\"photo.jpg\"\r\n";
+  part1Head += "Content-Type: image/jpeg\r\n\r\n";
+  String part1Foot = "\r\n";
 
-  // Part 2: deviceId 字段
-  String partHeader2 = boundaryStart + "\r\n";
-  partHeader2 += "Content-Disposition: form-data; name=\"deviceId\"\r\n\r\n";
-  partHeader2 += deviceId;
-  String partFooter2 = "\r\n";
+  String part2 = boundaryLine + "\r\n";
+  part2 += "Content-Disposition: form-data; name=\"deviceId\"\r\n\r\n";
+  part2 += deviceId + "\r\n";
 
-  // Part 3: category 字段
-  String partHeader3 = boundaryStart + "\r\n";
-  partHeader3 += "Content-Disposition: form-data; name=\"category\"\r\n\r\n";
-  partHeader3 += category;
-  String partFooter3 = "\r\n" + boundaryEnd;
+  String part3 = boundaryLine + "\r\n";
+  part3 += "Content-Disposition: form-data; name=\"category\"\r\n\r\n";
+  part3 += category + "\r\n";
 
-  // 计算总长度
-  int totalLen = partHeader1.length() + jpegLen + partFooter1.length() +
-                 partHeader2.length() + partFooter2.length() +
-                 partHeader3.length() + partFooter3.length();
+  String partEnd = boundaryLine + "--\r\n";
 
-  http.begin(client, url);
-  http.addHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
-  if (g_jwt.length() > 0) http.addHeader("Authorization", "Bearer " + g_jwt);
-  http.addHeader("Content-Length", String(totalLen));
+  // 计算完整 body 大小
+  int bodyLen = part1Head.length() + jpegLen + part1Foot.length()
+              + part2.length() + part3.length() + partEnd.length();
 
-  http.POST("");
-  WiFiClient* stream = http.getStreamPtr();
+  // 为完整 body 分配连续内存
+  uint8_t* body = (uint8_t*)malloc(bodyLen);
+  if (!body) {
+    Serial.println("[OCR] malloc body 失败");
+    return "";
+  }
 
-  // 写入 part 1
-  stream->print(partHeader1);
-  stream->write(jpegData, jpegLen);
-  stream->print(partFooter1);
-  // 写入 part 2
-  stream->print(partHeader2);
-  stream->print(partFooter2);
-  // 写入 part 3
-  stream->print(partHeader3);
-  stream->print(partFooter3);
+  // 拼装完整 body 到 buffer
+  int pos = 0;
+  memcpy(body + pos, part1Head.c_str(), part1Head.length()); pos += part1Head.length();
+  memcpy(body + pos, jpegData, jpegLen);                    pos += jpegLen;
+  memcpy(body + pos, part1Foot.c_str(), part1Foot.length()); pos += part1Foot.length();
+  memcpy(body + pos, part2.c_str(), part2.length());        pos += part2.length();
+  memcpy(body + pos, part3.c_str(), part3.length());        pos += part3.length();
+  memcpy(body + pos, partEnd.c_str(), partEnd.length());    pos += partEnd.length();
 
-  String resp = http.getString();
-  http.end();
+  // 直接通过 WiFiClient 发送完整 HTTP 请求 (避过 HTTPClient 的流式问题)
+  WiFiClient client;
+  client.setTimeout(15);
+
+  // 从 BASE_URL 提取 host (跳过 "http://")
+  const char* host = "47.94.146.53";
+  int port = 80;
+
+  if (!client.connect(host, port)) {
+    Serial.println("[OCR] TCP 连接失败");
+    free(body);
+    return "";
+  }
+
+  // HTTP 请求行 + 头
+  String fullPath = "/vg" + path;  // Nginx 前缀
+  client.print("POST " + fullPath + " HTTP/1.1\r\n");
+  client.print("Host: " + String(host) + "\r\n");
+  client.print("Content-Type: multipart/form-data; boundary=" + boundary + "\r\n");
+  client.print("Content-Length: " + String(bodyLen) + "\r\n");
+  if (g_jwt.length() > 0) {
+    client.print("Authorization: Bearer " + g_jwt + "\r\n");
+  }
+  client.print("Connection: close\r\n");
+  client.print("\r\n");
+
+  // 一次性写入完整 body
+  client.write(body, bodyLen);
+  free(body);
+
+  // 读取响应
+  unsigned long deadline = millis() + 15000;
+  String resp = "";
+  while (millis() < deadline) {
+    if (client.available()) {
+      resp += (char)client.read();
+      deadline = millis() + 2000;  // 有数据到达时延长等待
+    }
+    if (!client.connected() && !client.available()) break;
+    delay(1);
+  }
+  client.stop();
+
+  // 剥离 HTTP 头, 仅返回 JSON body
+  int bodyStart = resp.indexOf("\r\n\r\n");
+  if (bodyStart != -1) {
+    resp = resp.substring(bodyStart + 4);
+  }
+
   return resp;
 }
 
