@@ -69,6 +69,14 @@ type ImageUploadResp struct {
 }
 
 func (s *OcrService) UploadImage(req ImageUploadReq) (*ImageUploadResp, error) {
+	// 硬件上传时不传 elderId，从设备绑定关系自动解析
+	if req.ElderID == "" && req.DeviceID != "" {
+		var binding model.Binding
+		if s.db.Where("device_id = ? AND status = ?", req.DeviceID, "bound").First(&binding).Error == nil {
+			req.ElderID = binding.ElderID
+		}
+	}
+
 	imageID := "IMG_" + generateRandomString(8)
 
 	record := model.OcrRecord{

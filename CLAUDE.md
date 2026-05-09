@@ -62,7 +62,9 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 每次改动后：
 - [ ] 后端改动 → 运行 `./server-deploy.sh` 同步到 `deploy/` 并推送
+- [ ] 后端改动 → 同步到 `submission/internal/`（与 deploy 同级目录）
 - [ ] Android 改动 → 同步到 `submission/android/`，确认 BASE_URL 仍是云地址
+- [ ] 硬件改动 → `submission/hardware/` ↔ `hardware/` 双向同步
 - [ ] `submission/android/app/build.gradle.kts` minSdk = 31
 - [ ] 新增文件已在 submission 中存在
 
@@ -273,6 +275,21 @@ git push gitee master
 - **根因**：`http.POST("")` + `getStreamPtr()` 流式模式 — 库发送空 body 后立即读响应，服务器等完整 body 未响应 → `_tcp` 变 NULL → 写空指针 → LoadProhibited
 - **修复**：替换为 WiFiClient 直发 — malloc 拼装完整 multipart body → TCP connect → 一次性 write
 - 两处固件同步：`hardware/esp32/esp32sense.ino` + `submission/hardware/esp32/esp32sense.ino`
+
+### 2026-05-09 — 硬件 OCR 固件增强 + Android OCR 记录不显示修复
+
+- **硬件队友**：ESP32 固件多轮优化（详见 `docs/开发日志.md`）：
+  - OCR 结果对应关系修复：上传后轮询时返回旧缓存 → 改为 `taskId` 精确匹配校验
+  - 大图上传稳定性：分块发送 + `yield()` 释放 CPU + 超时延长
+  - NTP 时间同步：`configTime` 从阿里云 NTP 获取北京时间
+  - JWT 自动续期：loop 中到期前重新 challenge
+  - SN_TEST_005 → SN_TEST_008
+- **Android OCR 记录 0 条修复**：
+  - 根因：硬件上传 OCR 图片时不传 `elderId` → OCR 记录 `elder_id` 为空 → Android 查询按用户监护老人过滤（`WHERE elder_id IN ?`）→ 空值永不匹配 → 0 条
+  - 修复：`OcrService.UploadImage` 中当 `elderId` 为空时自动从设备绑定表解析（`bindings WHERE device_id = ? AND status = 'bound'`）
+  - 同类 bug 已两次（告警 ListAlerts + OCR ListRecords），规则：**所有硬件上传接口写入时必须确保 elder_id 正确填充**
+- **同步**：`backend/` → `submission/` + `deploy/`；`submission/hardware/` → `hardware/`
+- **硬件 OCR 全链路验证通过**：豆包正常返回 `medicineName` + `speakText`，语音播报正常
 
 ### 当前状态 (2026-05-06 深夜)
 

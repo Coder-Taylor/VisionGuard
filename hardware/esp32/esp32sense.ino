@@ -7,7 +7,7 @@
 #include "SPI.h"
 #include <Preferences.h>
 
-#define DEVICE_SERIAL_NO "SN_TEST_005"
+#define DEVICE_SERIAL_NO "SN_TEST_008"
 #define DEVICE_MODEL     "ESP32_K210"
 #define HW_VERSION       "1.0"
 #define FW_VERSION       "1.0.0"
@@ -42,6 +42,12 @@ String httpPost(String path, String body, bool useJwt = false) {
   HTTPClient h; h.begin(String(BASE_URL) + path); h.addHeader("Content-Type", "application/json");
   if (useJwt && g_jwt.length() > 0) h.addHeader("Authorization", "Bearer " + g_jwt);
   h.POST(body); String r = h.getString(); h.end(); return r;
+}
+
+String httpGet(String path, bool useJwt = false) {
+  HTTPClient h; h.begin(String(BASE_URL) + path);
+  if (useJwt && g_jwt.length() > 0) h.addHeader("Authorization", "Bearer " + g_jwt);
+  h.GET(); String r = h.getString(); h.end(); return r;
 }
 
 String calcSign(String deviceSecret, String nonce, long timestamp) {
@@ -132,18 +138,12 @@ void uploadObstacleAlarm(int d) {
   Serial.println("[避障告警] " + httpPost("/api/v1/alert", body));
 }
 
-// ==================== OCR 药品识别 ====================
-
-// 直接通过 WiFiClient 发送 multipart/form-data 图片上传
-// 避免 HTTPClient + getStreamPtr() 空指针崩溃问题:
-//   http.POST("") 发送空 body 后库立即读响应, 但服务器在等 Content-Length 字节 → 超时 → _tcp=NULL → 崩溃
-String httpPostMultipartImage(String path, const uint8_t* jpegData, int jpegLen, String deviceId, String category) {
+String httpPostMultipartImage(const uint8_t* jpegData, int jpegLen, String deviceId) {
   if (!wifiOnline || jpegData == nullptr || jpegLen == 0) return "";
 
   String boundary = "----VisionGuard" + String(millis());
   String boundaryLine = "--" + boundary;
 
-  // 组装 multipart body 各部分 (字符串部分)
   String part1Head = boundaryLine + "\r\n";
   part1Head += "Content-Disposition: form-data; name=\"image\"; filename=\"photo.jpg\"\r\n";
   part1Head += "Content-Type: image/jpeg\r\n\r\n";
@@ -155,22 +155,16 @@ String httpPostMultipartImage(String path, const uint8_t* jpegData, int jpegLen,
 
   String part3 = boundaryLine + "\r\n";
   part3 += "Content-Disposition: form-data; name=\"category\"\r\n\r\n";
-  part3 += category + "\r\n";
+  part3 += "medicine\r\n";
 
   String partEnd = boundaryLine + "--\r\n";
 
-  // 计算完整 body 大小
   int bodyLen = part1Head.length() + jpegLen + part1Foot.length()
               + part2.length() + part3.length() + partEnd.length();
 
-  // 为完整 body 分配连续内存
   uint8_t* body = (uint8_t*)malloc(bodyLen);
-  if (!body) {
-    Serial.println("[OCR] malloc body 失败");
-    return "";
-  }
+  if (!body) return "";
 
-  // 拼装完整 body 到 buffer
   int pos = 0;
   memcpy(body + pos, part1Head.c_str(), part1Head.length()); pos += part1Head.length();
   memcpy(body + pos, jpegData, jpegLen);                    pos += jpegLen;
@@ -179,24 +173,18 @@ String httpPostMultipartImage(String path, const uint8_t* jpegData, int jpegLen,
   memcpy(body + pos, part3.c_str(), part3.length());        pos += part3.length();
   memcpy(body + pos, partEnd.c_str(), partEnd.length());    pos += partEnd.length();
 
-  // 直接通过 WiFiClient 发送完整 HTTP 请求 (避过 HTTPClient 的流式问题)
   WiFiClient client;
   client.setTimeout(15);
 
-  // 从 BASE_URL 提取 host (跳过 "http://")
-  const char* host = "47.94.146.53";
-  int port = 80;
-
-  if (!client.connect(host, port)) {
-    Serial.println("[OCR] TCP 连接失败");
+  if (!client.connect("47.94.146.53", 80)) {
     free(body);
+    client.stop();
     return "";
   }
 
-  // HTTP 请求行 + 头
-  String fullPath = "/vg" + path;  // Nginx 前缀
+  String fullPath = "/vg/api/v1/device/ocr/image";
   client.print("POST " + fullPath + " HTTP/1.1\r\n");
-  client.print("Host: " + String(host) + "\r\n");
+  client.print("Host: 47.94.146.53\r\n");
   client.print("Content-Type: multipart/form-data; boundary=" + boundary + "\r\n");
   client.print("Content-Length: " + String(bodyLen) + "\r\n");
   if (g_jwt.length() > 0) {
@@ -205,45 +193,46 @@ String httpPostMultipartImage(String path, const uint8_t* jpegData, int jpegLen,
   client.print("Connection: close\r\n");
   client.print("\r\n");
 
-  // 一次性写入完整 body
-  client.write(body, bodyLen);
+  int written = 0;
+  while (written < bodyLen) {
+    int chunk = min(1024, bodyLen - written);
+    client.write(body + written, chunk);
+    written += chunk;
+    delay(1);
+  }
   free(body);
 
-  // 读取响应
   unsigned long deadline = millis() + 15000;
   String resp = "";
+  bool headerEnd = false;
+
   while (millis() < deadline) {
     if (client.available()) {
-      resp += (char)client.read();
-      deadline = millis() + 2000;  // 有数据到达时延长等待
+      char c = client.read();
+      resp += c;
+      deadline = millis() + 3000;
+      if (!headerEnd && resp.endsWith("\r\n\r\n")) {
+        headerEnd = true;
+      }
     }
     if (!client.connected() && !client.available()) break;
-    delay(1);
+    delay(5);
   }
   client.stop();
 
-  // 剥离 HTTP 头, 仅返回 JSON body
-  int bodyStart = resp.indexOf("\r\n\r\n");
-  if (bodyStart != -1) {
+  if (headerEnd) {
+    int bodyStart = resp.indexOf("\r\n\r\n");
     resp = resp.substring(bodyStart + 4);
+  } else {
+    Serial.print("[原始响应] "); Serial.println(resp);
+    return "";
   }
 
   return resp;
 }
 
 String pollOcrResult(String deviceId) {
-  String path = "/api/v1/ocr/result/latest?deviceId=" + deviceId;
-  return httpGet(path, true);
-}
-
-String httpGet(String path, bool useJwt) {
-  HTTPClient h;
-  h.begin(String(BASE_URL) + path);
-  if (useJwt && g_jwt.length() > 0) h.addHeader("Authorization", "Bearer " + g_jwt);
-  h.GET();
-  String r = h.getString();
-  h.end();
-  return r;
+  return httpGet("/api/v1/ocr/result/latest?deviceId=" + deviceId, true);
 }
 
 void setup() {
@@ -266,6 +255,17 @@ void setup() {
 
   if (wifiOnline) {
     Serial.println("WiFi已连接");
+
+    configTime(8 * 3600, 0, "ntp.aliyun.com", "pool.ntp.org");
+    struct tm timeinfo;
+    int retry = 0;
+    while (!getLocalTime(&timeinfo) && retry < 20) {
+      delay(500);
+      retry++;
+    }
+    if (retry < 20) { Serial.println("时间已同步"); }
+    else { Serial.println("时间同步失败"); }
+
     if (g_deviceId.length() == 0) {
       Serial.println("首次启动，激活设备...");
       if (deviceActivate() && deviceRegister() && deviceChallenge()) {
@@ -279,10 +279,8 @@ void setup() {
         Serial.println("JWT有效，设备在线");
         onlineTime = millis();
       } else {
-        if (deviceChallenge()) {
-          Serial.println("认证成功，设备在线");
-          onlineTime = millis();
-        } else Serial.println("认证失败");
+        if (deviceChallenge()) { Serial.println("认证成功，设备在线"); onlineTime = millis(); }
+        else Serial.println("认证失败");
       }
     }
   } else {
@@ -298,10 +296,8 @@ void loop() {
   if (g_deviceId.length() > 0 && wifiOnline) {
     unsigned long elapsed = millis() - onlineTime;
 
-    if (millis() - lastHb > 30000) {
-      lastHb = millis();
-      sendHeartbeat();
-    }
+    if (millis() - lastHb > 30000) { lastHb = millis(); sendHeartbeat(); }
+    if (millis() > g_jwtExpiry && deviceChallenge()) { g_jwtExpiry = millis() + 23 * 3600 * 1000; Serial.println("[JWT刷新]"); }
 
     if (testStep == 0 && elapsed > 2000) {
       testStep = 1;
@@ -310,7 +306,6 @@ void loop() {
       while (audio.isRunning()) { audio.loop(); delay(10); }
       uploadFallAlarm(-65.0, 20.0);
     }
-
     if (testStep == 1 && elapsed > 17000) {
       testStep = 2;
       Serial.println("\n[测试2] 避障");
@@ -321,47 +316,55 @@ void loop() {
       while (audio.isRunning()) { audio.loop(); delay(10); }
       uploadObstacleAlarm(500);
     }
-
     if (testStep == 2 && elapsed > 20000) {
       testStep = 3;
-      Serial.println("\n[测试3] OCR 药品识别 — 等待 K210 拍照...");
+      Serial.println("\n[测试3] OCR 药品识别");
 
-      // 从 SD 卡读取测试图片 (实际使用时从 K210 UART 读取)
+      File root = SD.open("/");
+      File f = root.openNextFile();
+      Serial.println("SD卡文件:");
+      while (f) { Serial.print("  "); Serial.println(f.name()); f = root.openNextFile(); }
+      root.close();
+
       File imgFile = SD.open("/test_medicine.jpg", FILE_READ);
       if (imgFile) {
         int imgLen = imgFile.size();
         uint8_t* jpegBuf = (uint8_t*)malloc(imgLen);
         if (jpegBuf) {
           imgFile.read(jpegBuf, imgLen);
-          Serial.print("图片大小: "); Serial.print(imgLen); Serial.println(" bytes");
+          Serial.printf("图片大小: %d bytes\n", imgLen);
 
-          String resp = httpPostMultipartImage("/api/v1/device/ocr/image", jpegBuf, imgLen, g_deviceId, "medicine");
-          Serial.println("[OCR上传] " + resp);
+          String resp = httpPostMultipartImage(jpegBuf, imgLen, g_deviceId);
+          Serial.print("[OCR上传响应] ");
+          Serial.println(resp);
 
-          // 等豆包识别
-          delay(6000);
+          if (resp.length() > 0 && resp.indexOf("\"taskId\"") != -1) {
+            Serial.println("[OCR] 等待识别结果...");
+            String result = "";
+            for (int i = 0; i < 120; i++) {
+              delay(2000);
+              result = pollOcrResult(g_deviceId);
+              if (result.indexOf("待接入") == -1 && result.length() > 0) break;
+            }
+            Serial.println("[OCR结果] " + result);
 
-          String result = pollOcrResult(g_deviceId);
-          Serial.println("[OCR结果] " + result);
-
-          int p1 = result.indexOf("\"speakText\":\"");
-          if (p1 != -1) {
-            p1 += 13;
-            int p2 = result.indexOf("\"", p1);
-            String speakText = result.substring(p1, p2);
-            Serial.print("[语音播报] ");
-            Serial.println(speakText);
+            int p1 = result.indexOf("\"speakText\":\"");
+            if (p1 != -1) {
+              p1 += 13;
+              int p2 = result.indexOf("\"", p1);
+              Serial.print("[语音播报] "); Serial.println(result.substring(p1, p2));
+            }
+          } else {
+            Serial.println("[OCR] 未获取到任务ID");
           }
           free(jpegBuf);
         }
         imgFile.close();
       } else {
-        Serial.println("无测试图片 /test_medicine.jpg，跳过OCR");
+        Serial.println("无测试图片 /test_medicine.jpg");
       }
-
       Serial.println("\n===== 测试完成 =====");
     }
   }
-
   delay(5);
 }
