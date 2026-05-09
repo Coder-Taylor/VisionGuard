@@ -99,14 +99,13 @@ npm run build         # 生产构建 → dist/
 ```bash
 # 1. 构建
 cd submission/web
-# ★ 部署前确认 vite.config.ts 中 base: '/vg/app/'
+# ★ 部署前确认 vite.config.ts 中 base 设为实际部署路径
 npm run build
 
-# 2. 上传
-ssh root@47.94.146.53 "mkdir -p /srv/web/vg/app"
-scp -r dist/* root@47.94.146.53:/srv/web/vg/app/
+# 2. 上传 dist/ 到服务器 Nginx 静态目录
+scp -r dist/* root@47.94.146.53:<部署路径>/
 
-# 3. Nginx 会直接托管，无需重载（已预先配置 /vg/app/ location）
+# 3. Nginx 需预先配置对应 location（SPA try_files 回退到 index.html）
 ```
 
 **Android + Web 同步更新铁律**：
