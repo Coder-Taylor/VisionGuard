@@ -83,12 +83,37 @@ This file provides guidance to Claude Code when working with code in this reposi
 >
 > **页面对齐**：Web 17 页 ↔ Android 18 页（跳过 ESP32 直连的 DeviceScreen）。
 
+**为什么不需要 deploy/web/**：
+Web 是纯静态文件（HTML+JS+CSS），`npm run build` 产出 `dist/` 即为最终产物，直接 scp 到服务器 Nginx 托管。不像后端（Go 源码需传服务器再 Docker build → 需要 `deploy/` 作为中间暂存区）。
+
+**开发命令**：
+```bash
+cd submission/web
+npm install           # 安装依赖
+npm run dev           # 启动 dev server（Vite proxy → 47.94.146.53/vg）
+npx tsc --noEmit     # TypeScript 类型检查
+npm run build         # 生产构建 → dist/
+```
+
+**部署到服务器**（纯静态文件，无需 Docker）：
+```bash
+# 1. 构建
+cd submission/web
+# ★ 部署前确认 vite.config.ts 中 base: '/vg/app/'
+npm run build
+
+# 2. 上传
+ssh root@47.94.146.53 "mkdir -p /srv/web/vg/app"
+scp -r dist/* root@47.94.146.53:/srv/web/vg/app/
+
+# 3. Nginx 会直接托管，无需重载（已预先配置 /vg/app/ location）
+```
+
 **Android + Web 同步更新铁律**：
 1. 每次修改 Android 功能，必须同步修改 Web（反之亦然）
-2. 两者共用同一后端 API，字段对齐 Android 的数据模型（`ApiModels.kt`）
-3. Web 开发 `npm run dev`（Vite proxy 代理到 `47.94.146.53/vg`）
-4. Web 构建 `npm run build` → `dist/`
-5. **网页版暂不部署**，等待用户指示部署位置
+2. 两者共用同一后端 API，字段必须对齐 Android 的数据模型（`ApiModels.kt`）
+3. Web 源码只在 `submission/web/`，**不需要同步到 backend/ 或 deploy/**
+4. 网页版部署时机由用户指示，部署方式是 scp 静态文件（非 Docker 容器）
 
 ### 服务器部署流程
 
