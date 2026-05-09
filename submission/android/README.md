@@ -22,7 +22,7 @@ cp local.properties.example local.properties
 
 ## 预构建 APK
 
-`apk/VisionGuard-v1.5-cloud.apk` 已配置连接云服务器 `http://47.94.146.53/vg/`，可直接安装。
+`apk/VisionGuard-v1.5.0-cloud.apk` 已配置连接云服务器 `http://47.94.146.53/vg/`，可直接安装。
 
 ## 技术栈
 

@@ -54,7 +54,7 @@ submission/
 │   │       ├── test/                # 单元测试
 │   │       └── androidTest/         # 仪器测试
 │   └── apk/
-│       └── VisionGuard-v1.4.apk     # ★ 预构建 APK（已签名，103MB）
+│       └── VisionGuard-v1.5.0-cloud.apk     # ★ 预构建 APK（已签名，118MB）
 │
 │   # === Web 管理后台（React + TypeScript） ===
 ├── web/
@@ -198,7 +198,7 @@ curl -X POST http://localhost:3000/api/v1/auth/login \
 ### 直接安装（预构建 APK）
 
 ```bash
-adb install android/apk/VisionGuard-v1.4.apk
+adb install android/apk/VisionGuard-v1.5.0-cloud.apk
 ```
 
 ### 从源码构建

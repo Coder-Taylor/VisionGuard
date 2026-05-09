@@ -296,14 +296,14 @@ git push gitee master
 | AI | **忽视 API 字段名修复 (2026-05-06)**：根因 `UpdateAlertStatusReq(status)` → 改 `action` 字段对齐后端 `json:"action"`；后端 switch-case 同时接受 `confirm/confirmed` 等；新增独立 `dismissScope` 防止切 Tab 取消协程；`rememberSaveable` 跨页面记住已忽视 ID |
 | AI | **地图初始化修复 (2026-05-06)**：AMap 3D SDK 10.x 新增 `MapsInitializer.updatePrivacyShow/Agree` 隐私合规初始化；图例从右下移到左上避免挡住缩放按钮；开启 `isZoomGesturesEnabled` |
 | AI | **硬件代码更新 (2026-05-06)**：硬件团队最新 ESP32 固件 `hardware1test.zip` → 已整合到 `hardware/esp32/esp32sense.ino` + `wordmap.h` + `k210/detect.kmodel` + `k210/main.py`，SN_TEST_003→SN_TEST_005 |
-| AI | **submission 完整交付包 (2026-05-06)**：重组织 submission 为三端完整交付目录 — ① 后端 Go 源码（internal/cmd/config/migrations + Docker）② Android 完整源码（18 页面 Kotlin + Compose + Gradle）③ 硬件固件源码（ESP32 + K210）④ 预构建云版 APK（android/apk/VisionGuard-v1.4-cloud.apk，已签名，118MB，BASE_URL 指向 47.94.146.53:3000）。本地版 APK 在项目根目录。含中英文 README。
+| AI | **submission 完整交付包 (2026-05-06)**：重组织 submission 为三端完整交付目录 — ① 后端 Go 源码（internal/cmd/config/migrations + Docker）② Android 完整源码（18 页面 Kotlin + Compose + Gradle）③ 硬件固件源码（ESP32 + K210）④ 预构建云版 APK（android/apk/VisionGuard-v1.4.6-cloud.apk，已签名，118MB，BASE_URL 指向 47.94.146.53/vg）。本地版 APK 在项目根目录。含中英文 README。
 | AI | **CompactTopBar 标题栏修复 (2026-05-06)**：7 页面 TopAppBar 从 M3 默认 64dp → CompactTopBar 48dp（Location/DeviceManagement/ElderManagement/ElderDetail/NotificationList/OcrMedicine/UserSettings），统一 PrimaryBlue 背景 + ArrowBack + 可选 actions
 | AI | **NetworkMonitor 离线检测 (2026-05-06)**：新增 `NetworkMonitor` object，`ConnectivityManager.NetworkCallback` 实时追踪网络状态，`isOnline()` 供全局查询。`MainActivity.onCreate()` 调用 `NetworkMonitor.init(this)`
 | AI | **ErrorHelper 离线提示 (2026-05-06)**：`ErrorHelper.userMessage()` 优先查 `NetworkMonitor.isOnline()`，设备无网络时返回"当前处于离线状态，请检查手机网络"，无需 Context 参数
 | AI | **通知中心修复 (2026-05-06)**：后端 notification service 响应字段 `messages`→`list`（对齐 Android PaginatedData）；MsgItem 新增 `priority` 字段；Android NotificationApi `@Query("read")`→`@Query("readStatus")`
 | AI | **ProfileScreen 未读角标 (2026-05-06)**：ProfileScreen 消息通知入口新增 `UnreadBadge`（呼吸动效），LaunchedEffect 启动时获取未读计数
 | AI | **OCR 后端二进制上传 (2026-05-06)**：`handler/ocr.go` UploadImage 支持双模式 — multipart/form-data（硬件 JPEG 二进制，按 deviceId 分目录存储）+ application/json（Android base64 data URL）；`main.go` 新增 `app.Static("/uploads", "./uploads")` 静态文件服务
-| AI | **submission 全量同步 + APK 构建 (2026-05-06)**：将 CompactTopBar/NetworkMonitor/ErrorHelper/通知修复/OCR multipart 等全部改动同步至 submission；构建 VisionGuard-v1.4-cloud.apk（118MB）并 ADB 安装到手机
+| AI | **submission 全量同步 + APK 构建 (2026-05-06)**：将 CompactTopBar/NetworkMonitor/ErrorHelper/通知修复/OCR multipart 等全部改动同步至 submission；构建 VisionGuard-v1.4.6-cloud.apk（118MB）并 ADB 安装到手机
 | AI | **CompactTopBar 文字裁剪修复 (2026-05-06)**：M3 TopAppBar 强制 48dp 导致文字被内部 padding 遮挡 → 改用自定义 Row（48dp + PrimaryBlue 背景 + IconButton + Text weight(1f)），去掉 TopAppBar/TopAppBarDefaults/ExperimentalMaterial3Api 依赖
 | AI | **用药计划后端 (2026-05-06)**：新增 `model.MedicationPlan`（药品/剂量/频次/JSON schedule/起止日期/状态）+ `MedicationService` CRUD + `MedicationHandler` 6 路由（监护人创建/列表/更新/删除 + 硬件轮询 + 豆包识别）+ `GET /api/v1/device/:deviceId/pending-messages` 硬件轮询（±3min 用药提醒 + 5min 内 OCR 结果）；`app.Static` 静态文件服务
 | AI | **豆包 API 占位 (2026-05-06)**：`config.go` 新增 `DOUBAO_API_KEY`/`DOUBAO_API_URL`（默认 ark.cn-beijing.volces.com）；`DoubaoService.RecognizeMedicine` 占位（注释包含真实调用格式）；`MockRecognizeMedicine` 基于 OCR 文字关键词模拟识别；`.env.example` 新增豆包配置项
@@ -361,8 +361,8 @@ git push gitee master
   - 个人：ProfileScreen（编辑昵称+4个功能入口）+ UserSettingsScreen（修改密码+手机号换绑）
   - 通知：NotificationListScreen（消息列表+全部已读）
 - Android 构建：`./gradlew :app:assembleRelease` ✅（已签名）
-- Release APK：`VisionGuard-v1.4.apk`（118MB），项目根目录（本地版，127.0.0.1:3000）；`submission/android/apk/VisionGuard-v1.4-cloud.apk`（118MB，云版，47.94.146.53:3000）
-- submission = 完整三端交付包：后端源码 + Android 完整源码 + 预构建 APK + 硬件固件
+- Release APK：`apk/VisionGuard-v1.5.0-local.apk`（本地版，127.0.0.1:3000）；`submission/android/apk/VisionGuard-v1.5.0-cloud.apk`（云版，47.94.146.53/vg）
+- submission = 完整四端交付包：后端源码 + Android 完整源码 + 预构建 APK + 硬件固件 + Web 管理后台
 - 云服务器：Dockerfile 国内需加 `ENV GOPROXY=https://goproxy.cn,direct` 解决 go mod download 超时
 - 高德地图 SDK 10.0.600 已集成，API Key 已配置（`d8fe...`，见 local.properties）
 - 全局设计规范已对齐 UI11.DOCX：#165DFF 主色 + 16dp 统一圆角
