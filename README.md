@@ -1,6 +1,6 @@
 # VisionGuard
 
-面向视障与老年群体的胸挂式智能设备系统。**硬件本地安全 + 云端数据增强 + APP 远程监护**，三端协作。
+面向视障与老年群体的胸挂式智能设备系统。**硬件本地安全 + 云端数据增强 + APP 远程监护 + Web 管理后台**，四端协作。
 
 > **Gitee 仓库**：[gitee.com/taylorchengitee/vision-guard](https://gitee.com/taylorchengitee/vision-guard)
 > **生产服务器**：`http://47.94.146.53/vg/`（Nginx 80 端口，内部代理 → VisionGuard :3000）
@@ -11,21 +11,24 @@
 | 你想做什么 | 去哪里 |
 |------------|--------|
 | 安装 APP 测试 | 下载 `apk/VisionGuard-v1.4-cloud.apk`（连本地）或 `submission/android/apk/VisionGuard-v1.4-cloud.apk`（连云服务器） |
+| 打开网页版 | `submission/web/` — `npm run dev` 启动，或访问部署后的 `/vg/app/` |
 | 看后端接口 | 读 `docs/业务流程与后端设计.md` |
 | 看 UI 设计规范 | 读 `docs/Android-UI设计文档.md` |
 | 烧录硬件 | 固件在 `hardware/esp32/esp32sense.ino`，对接指南在 `docs/硬件对接文档.md` |
 | 部署到云服务器 | 读 `docs/部署指南.md`，部署包在 `submission/` |
 | 看改了啥 | 读 `docs/变更记录.md` |
 
-### 三版本说明
+### 四版本说明
 
 | 版本 | 本地文件夹 | 内容 |
 |------|-----------|------|
 | **本地测试版** | `app/` + `backend/` | 日常开发调试（`127.0.0.1:3000`） |
-| **提交评委版** | `submission/` | 三端完整源码+APK（交给评委） |
+| **提交评委版** | `submission/` | 四端完整源码+APK（交给评委） |
 | **云端部署版** | `deploy/` | 纯后端+Docker，服务器 git pull 直接部署 |
+| **Web 网页版** | `submission/web/` | React 管理后台，仅存在于 submission（不在 backend/deploy） |
 
 > **代码流**：改 `backend/` → `bash server-deploy.sh` → 同步到 `deploy/` → scp 推送 → Docker 重建 → 清理源码。
+> **Web 部署**：`submission/web/` → `npm run build` → 静态文件 `dist/` → scp 推送到服务器 Nginx 目录（无需 Docker）。
 
 ---
 
@@ -84,19 +87,19 @@
 ## 二、系统架构
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                       VisionGuard 三端架构                        │
-├─────────────┐              ┌──────────────┐        ┌─────────────┤
-│   硬件端     │   HTTP/JSON  │   云端 Go     │  REST  │  Android    │
-│  ESP32+K210 │ ──────────→ │  Fiber v2     │ ←───→ │  Kotlin     │
-│             │ ←────────── │  PostgreSQL   │        │  Compose    │
-│  本地优先    │              │  Redis         │        │  远程监护    │
-└─────────────┘              └──────────────┘        └─────────────┘
-      │                            │                        │
-      │ 摔倒检测（本地）            │ 存储+分发               │ 查看+响应
-      │ 避障检测（本地）            │ OCR+LLM                │ 绑定设备
-      │ 语音播报（本地）            │ 离线检测                │ 管理老人
-      │ 拍照上传                   │ 告警去重+通知           │ 地图轨迹
+┌──────────────────────────────────────────────────────────────────────────┐
+│                         VisionGuard 四端架构                               │
+├─────────────┐              ┌──────────────┐        ┌─────────────┬────────┤
+│   硬件端     │   HTTP/JSON  │   云端 Go     │  REST  │  Android    │  Web   │
+│  ESP32+K210 │ ──────────→ │  Fiber v2     │ ←───→ │  Kotlin     │ React  │
+│             │ ←────────── │  PostgreSQL   │        │  Compose    │  TS    │
+│  本地优先    │              │  Redis         │        │  远程监护    │ 后台管理 │
+└─────────────┘              └──────────────┘        └─────────────┴────────┘
+      │                            │                        │            │
+      │ 摔倒检测（本地）            │ 存储+分发               │ 查看+响应   │ 网页管理
+      │ 避障检测（本地）            │ OCR+LLM                │ 绑定设备   │ 数据看板
+      │ 语音播报（本地）            │ 离线检测                │ 管理老人   │ 告警处理
+      │ 拍照上传                   │ 告警去重+通知           │ 地图轨迹   │ 设备管理
 ```
 
 **数据流方向**：
@@ -162,6 +165,7 @@ MPU6050 姿态异常
 | **硬件开发** | [硬件对接文档](docs/硬件对接文档.md) — 接口+认证+curl | [硬件架构说明](hardware/README.md) — K210/ESP32 串口协议 | 硬件对接文档第八章 |
 | **Android 开发** | [业务流程与后端设计](docs/业务流程与后端设计.md) — 全部接口+DB | [Android 开发指引](app/README.md) — 工程结构 | 业务流程文档第 2 章接口清单 |
 | **后端开发** | [业务设计原始版](docs/业务设计%20(1).md) — 原始规格 | [业务流程与后端设计](docs/业务流程与后端设计.md) — 实现文档 | [backend/internal/](backend/internal/) 源码 |
+| **Web 前端开发** | [↓ 下方文档撰写指南](#ch4-doc) — 项目全貌速览 | [Android-UI设计文档](docs/Android-UI设计文档.md) — 设计规范 | [submission/web/src/](submission/web/src/) 源码 |
 | **文档同学** | [↓ 下方文档撰写指南](#ch4-doc) — 项目全貌速览 | [业务流程与后端设计](docs/业务流程与后端设计.md) | 本文件 + 所有 docs/ 文档 |
 | **学长/负责人** | 本文件（README） | [业务流程与后端设计](docs/业务流程与后端设计.md) | [代码审查清单](docs/代码审查清单.md) |
 
@@ -187,9 +191,10 @@ MPU6050 姿态异常
 3. 设备→云端→APP 三端通过 HTTP REST API 通信，设备用 XOR challenge-response 认证，用户用 JWT
 
 **关键数字**（答辩素材）：
-- 后端 77 条 REST 路由、16 张数据表
+- 后端 81 条 REST 路由、17 张数据表
 - 7 种告警类型（摔倒/避障/SOS/心率/低电量/离线/围栏）
-- Android 18 个页面、5 个 Tab、全局统一设计规范
+- Android 18 个页面 + Web 17 个页面，统一设计规范
+- 四端协作：硬件 ESP32+K210 / 云端 Go / Android Kotlin / Web React
 - 设备认证：XOR 0x4B challenge-response + JWT 24h
 
 **技术栈速览**：
@@ -199,25 +204,26 @@ MPU6050 姿态异常
 | 硬件 | C++ (ESP32) + Python (K210) | Arduino, MaixPy | — |
 | 云端 | Go 1.23 | Fiber v2, GORM, JWT | PostgreSQL 16 + Redis 7 |
 | Android | Kotlin | Jetpack Compose, Retrofit, ZXing, 高德地图 | — |
+| Web | TypeScript | React 18, Vite, Tailwind CSS, React Router, axios | — |
 
-**三端通信流程图**（用于答辩 PPT）：
+**四端通信流程图**（用于答辩 PPT）：
 
 ```
-硬件 (ESP32+K210)           云端 (Go)              Android APP
-     │                         │                      │
-     │── activate ────────────→│                      │
-     │── register ────────────→│                      │
-     │── challenge ───────────→│                      │
-     │── verify (XOR 0x4B) ───→│ 返回 JWT (24h)       │
-     │                         │                      │
-     │── heartbeat (30s) ─────→│ Redis TTL + GPS 存储  │
-     │                         │                      │
-     │── alert (摔倒/避障) ───→│←── 轮询告警列表 ────│
-     │                         │── 推送通知 ──────────→│
-     │                         │                      │
-     │── 拍照 + OCR ──────────→│ OCR mock + LLM 建议   │
-     │←── 返回纯文本 ──────────│                      │
-     │ (ESP32 本地 WAV 朗读)   │                      │
+硬件 (ESP32+K210)           云端 (Go)              Android APP         Web 管理后台
+     │                         │                      │                    │
+     │── activate ────────────→│                      │                    │
+     │── register ────────────→│                      │                    │
+     │── challenge ───────────→│                      │                    │
+     │── verify (XOR 0x4B) ───→│ 返回 JWT (24h)       │                    │
+     │                         │                      │                    │
+     │── heartbeat (30s) ─────→│ Redis TTL + GPS 存储  │                    │
+     │                         │                      │                    │
+     │── alert (摔倒/避障) ───→│←── 轮询告警列表 ────│←── 查看/处理告警 ──│
+     │                         │── 推送通知 ──────────→│                    │
+     │                         │                      │                    │
+     │── 拍照 + OCR ──────────→│ OCR + 豆包 AI 识别    │                    │
+     │←── 返回纯文本 ──────────│                      │                    │
+     │ (ESP32 本地 WAV 朗读)   │                      │                    │
 ```
 
 **文档撰写常用参考**：
@@ -259,6 +265,18 @@ MPU6050 姿态异常
 | ML Kit | Google ML Kit Text Recognition | 备用 OCR 能力 |
 | 推送 | Firebase Cloud Messaging | 通知推送 |
 | AI 推理 | ONNX Runtime Android | 本地模型推理（预留） |
+
+### Web
+
+| 层 | 技术 | 说明 |
+|---|------|------|
+| 语言 | TypeScript | 严格类型检查 |
+| UI 框架 | React 18 | 函数组件 + Hooks |
+| 构建 | Vite 5 | 极速 HMR 开发服务器 |
+| 样式 | Tailwind CSS 4 | 自定义色板对齐 Android AppColors.kt |
+| 路由 | React Router v7 | 嵌套路由 + Tab 导航 |
+| HTTP | axios | JWT 拦截器 + 401 自动刷新 |
+| 状态管理 | React Context + useReducer | 轻量级全局状态 |
 
 ### 硬件
 
@@ -306,7 +324,7 @@ XOR 0x4B Challenge-Response → 设备 JWT (24h 有效)
 ---
 
 <a id="ch7"></a>
-## 七、数据库概览（16 张表）
+## 七、数据库概览（17 张表）
 
 ### 用户与认证
 
@@ -372,16 +390,16 @@ vision-hub/                          # ★ Gitee: gitee.com/taylorchengitee/visi
 │   ├── esp32/esp32sense.ino        # ★ ESP32 固件（WiFi 凭据见团队私有渠道）
 │   └── k210/                       # K210 AI 视觉（main.py + detect.kmodel）
 │
-├── submission/                   # 🚀 评委提交版（三端完整源码 + APK + Docker）
+├── submission/                   # 🚀 评委提交版（四端完整源码 + APK + Docker）
 │   ├── cmd/server/main.go          #    入口（81 路由，17 表 AutoMigrate）
 │   ├── internal/                   #    Go 后端源码（与 backend/ 同步）
 │   ├── Dockerfile + docker-compose.prod.yml + .env.example
 │   ├── android/
 │   │   └── apk/VisionGuard-v1.4-cloud.apk  # ★ 云版 (47.94.146.53/vg)
-│   └── hardware/                   #    硬件固件副本
-│   └── Dockerfile                  #    Docker 生产部署
+│   ├── hardware/                   #    硬件固件副本
+│   └── web/                        #    Web 管理后台（React + TS + Vite + Tailwind）
 │
-├── docs/                           # 📚 文档（13 份）
+├── docs/                           # 📚 文档（14 份）
 │   ├── 部署指南.md                  # ★ 生产部署步骤
 │   ├── 硬件对接文档.md              # ESP32 对接指南
 │   ├── 业务流程与后端设计.md         # 81 路由 + 17 表 + 架构
@@ -410,11 +428,12 @@ vision-hub/                          # ★ Gitee: gitee.com/taylorchengitee/visi
 | [数据流模拟](docs/数据流模拟.md) | 全团队 | 端到端数据流场景模拟 |
 | [开发日志](docs/开发日志.md) | 后端 | 按日记录：环境搭建、代码实现、Bug 修复、网络联调 |
 | [变更记录](docs/变更记录.md) | 全团队 | 版本变更摘要 |
+| [服务器架构](docs/服务器架构.md) | 后端 | 服务器 Nginx 路由 + 服务架构 + 目录结构 |
 
 ---
 
 <a id="ch10"></a>
-## 十、后端接口总览（77 路由，10 模块）
+## 十、后端接口总览（81 路由，11 模块）
 
 ### 一、认证服务（8 路由）
 
@@ -813,6 +832,7 @@ docker compose -f docker-compose.prod.yml up -d
 | 设备 XOR 认证 | ✅ | Challenge-Response + JWT（设备 24h / 用户 1h） |
 | 代码审查 | ✅ | 4 轮审查，61 检查点通过 |
 | Android 开发 | ✅ | 18 页面 + 全局下拉刷新 + 核心流程贯通 + 真机验证通过，v1.3.3 APK 已签名 |
+| Web 网页版 | 🔄 | 17 页路由全部打通，4 核心页面完成，剩余子页面待完善 |
 | 硬件对接文档 | ✅ | 含本地测试指南 + curl 脚本 + 故障排查 |
 | Android 对接文档 | ✅ | 77 路由 + 业务流 + DB + 安全 + 部署 |
 | Docker 部署 | ✅ | 多阶段构建 + compose + 一键脚本 |

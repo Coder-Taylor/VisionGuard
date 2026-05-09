@@ -1,6 +1,6 @@
 # VisionGuard 完整交付包
 
-本文件夹包含 VisionGuard **三端完整源码交付**：后端 + Android + 硬件。
+本文件夹包含 VisionGuard **四端完整源码交付**：后端 + Android + 硬件 + Web 管理后台。
 
 ---
 
@@ -55,6 +55,37 @@ submission/
 │   │       └── androidTest/         # 仪器测试
 │   └── apk/
 │       └── VisionGuard-v1.4.apk     # ★ 预构建 APK（已签名，103MB）
+│
+│   # === Web 管理后台（React + TypeScript） ===
+├── web/
+│   ├── index.html                    # 入口 HTML
+│   ├── package.json                  # 依赖声明
+│   ├── vite.config.ts                # Vite 构建配置 + proxy
+│   ├── tsconfig.json                 # TypeScript 配置
+│   └── src/
+│       ├── main.tsx                  # React 入口
+│       ├── App.tsx                   # 路由表（17 页）
+│       ├── index.css                 # Tailwind @theme 自定义色板
+│       ├── api/                      # 8 个 API 模块（对齐后端 81 路由）
+│       │   ├── client.ts             # axios + JWT 拦截器 + 401 自动刷新
+│       │   ├── auth.ts / elder.ts / alert.ts / device.ts
+│       │   ├── ocr.ts / location.ts / notification.ts / medication.ts / user.ts
+│       ├── types/index.ts            # TypeScript 类型定义
+│       ├── context/AuthContext.tsx    # 登录状态管理
+│       ├── components/               # 7 个通用组件
+│       │   ├── Layout.tsx / BottomNav.tsx / AppButton.tsx
+│       │   ├── StatusTag.tsx / EmptyState.tsx / LoadingSpinner.tsx
+│       │   ├── CompactTopBar.tsx / ConfirmDialog.tsx / UnreadBadge.tsx
+│       └── pages/                    # 17 个页面
+│           ├── LoginPage.tsx / RegisterPage.tsx / ForgotPasswordPage.tsx
+│           ├── HomePage.tsx / PositionMedicinePage.tsx
+│           ├── AlertHistoryPage.tsx / AlertDetailPage.tsx
+│           ├── ProfilePage.tsx / UserSettingsPage.tsx
+│           ├── DeviceManagementPage.tsx
+│           ├── ElderManagementPage.tsx / ElderDetailPage.tsx
+│           ├── NotificationListPage.tsx
+│           ├── LocationPage.tsx / MapPage.tsx
+│           ├── OcrMedicinePage.tsx / MedicationPlanPage.tsx
 │
 │   # === 硬件固件完整源码 ===
 └── hardware/
@@ -318,10 +349,11 @@ docker network inspect visionguard_default
 
 ## 版本信息
 
-- **版本**：v1.4.0
-- **日期**：2026-05-06
+- **版本**：v1.5.0
+- **日期**：2026-05-09
 - **后端**：Go 1.23 + Fiber v2 + GORM + PostgreSQL 16 + Redis 7
 - **Android**：Kotlin + Jetpack Compose + Material 3 + 高德地图 SDK 10.0.600
+- **Web**：React 18 + TypeScript + Vite 5 + Tailwind CSS 4 + React Router v7
 - **硬件**：ESP32 (Arduino) + K210 (MicroPython)
-- **路由**：72 条 HTTP 接口
-- **数据表**：16 张
+- **路由**：81 条 HTTP 接口（含用药计划管理）
+- **数据表**：17 张

@@ -19,15 +19,20 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 ## ⚠️ 重要规则（每次改动必须遵守）
 
-### 三版本架构
+### 文档语言铁律
 
-项目存在**三个版本**，各对应一个本地文件夹：
+**所有文档必须用中文写**，包括但不限于：README.md、CLAUDE.md、docs/ 下所有 .md 文件、变更记录、开发日志、部署指南、TODO 文件、commit message。
+
+### 四端版本架构
+
+项目存在**三个后端版本** + **一个 Web 端**：
 
 | 版本 | 本地文件夹 | 内容 | BASE_URL |
 |------|-----------|------|----------|
 | **本地测试版** | `app/` + `backend/` | 日常开发调试 | `http://127.0.0.1:3000/` |
-| **提交评委版** | `submission/` | 三端完整源码+APK | `http://47.94.146.53/vg/` |
+| **提交评委版** | `submission/` | 四端完整源码+APK+Web | `http://47.94.146.53/vg/` |
 | **云端部署版** | `deploy/` | 纯后端 + Docker（rsync 直接推送，无 git） | `http://47.94.146.53/vg/` |
+| **Web 网页版** | `submission/web/` | React 管理后台，仅存在 submission（不在 backend/deploy） | — |
 
 > **各目录结构**：
 > ```
@@ -39,10 +44,12 @@ This file provides guidance to Claude Code when working with code in this reposi
 > ├── Dockerfile     ←────同步───→ ├── Dockerfile                   ├── Dockerfile
 > └── compose...     ←────同步───→ ├── compose...                   ├── compose...
 >                                  ├── deploy.sh  (服务器端启动)     ├── android/ (完整APP源码+APK)
->                                  └── .env       (服务器独有)      └── hardware/ (ESP32+K210)
+>                                  └── .env       (服务器独有)      ├── hardware/ (ESP32+K210)
+>                                                                   └── web/ (React 管理后台，仅 submissioon)
 > ```
 >
 > **代码流向**：`backend/` 是后端唯一源头 → `./server-deploy.sh` 自动：① 同步到 `deploy/` ② rsync 推送到服务器 ③ Docker 重建
+> **Web 部署**：`submission/web/` → `npm run build` → 静态文件 `dist/` → scp 推送服务器 Nginx 目录（无需 Docker，不在 deploy/ 中）
 
 ### Android 双版本 BASE_URL 铁律
 
@@ -68,7 +75,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 - [ ] Android 改动 → 同步到 `submission/android/`，确认 BASE_URL 仍是云地址
 - [ ] 硬件改动 → `submission/hardware/` ↔ `hardware/` 双向同步
 - [ ] `submission/android/app/build.gradle.kts` minSdk = 31
-- [ ] 新增文件已在 submission 中存在
+- [ ] Web 改动 → 仅 `submission/web/`（不在 backend/deploy 中）
 - [ ] Web 改动 → 仅更新 `submission/web/`（不需要同步到 backend/ 或 deploy/）
 
 ### 网页版规则（2026-05-09）
