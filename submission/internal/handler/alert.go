@@ -21,12 +21,17 @@ func (h *AlertHandler) GetAlertTypes(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"code": 0, "data": fiber.Map{"alertTypes": types}})
 }
 
-// POST /api/v1/alert  (七.2)
+// POST /api/v1/alert  (七.2) — 设备调用，需 deviceAuth；deviceID 强制取自 JWT
 func (h *AlertHandler) CreateAlert(c *fiber.Ctx) error {
+	deviceID, _ := c.Locals("deviceId").(string)
+	if deviceID == "" {
+		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "device token required"})
+	}
 	var req service.AlertCreateReq
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": "invalid request"})
 	}
+	req.DeviceID = deviceID
 
 	resp, err := h.svc.CreateAlert(req)
 	if err != nil {
@@ -43,21 +48,20 @@ func (h *AlertHandler) CreateAlert(c *fiber.Ctx) error {
 func (h *AlertHandler) UpdateAlertStatus(c *fiber.Ctx) error {
 	alertID := c.Params("alertId")
 	var req struct {
-		Action     string `json:"action"`
-		OperatorID uint   `json:"operatorId"`
-		Remark     string `json:"remark"`
+		Action string `json:"action"`
+		Remark string `json:"remark"`
 	}
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": "invalid request"})
 	}
 
-	if req.OperatorID == 0 {
-		if uid, ok := c.Locals("userId").(uint); ok {
-			req.OperatorID = uid
-		}
+	// 操作者一律取自 JWT，不接受 body 覆盖（防伪造他人审计记录）
+	operatorID, ok := c.Locals("userId").(uint)
+	if !ok || operatorID == 0 {
+		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "user token required"})
 	}
 
-	if err := h.svc.UpdateAlertStatus(alertID, req.Action, req.OperatorID, req.Remark); err != nil {
+	if err := h.svc.UpdateAlertStatus(alertID, req.Action, operatorID, req.Remark); err != nil {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": err.Error()})
 	}
 	return c.JSON(fiber.Map{"code": 0, "message": "alert " + req.Action + "ed"})
@@ -65,6 +69,10 @@ func (h *AlertHandler) UpdateAlertStatus(c *fiber.Ctx) error {
 
 // GET /api/v1/alerts  (七.6)
 func (h *AlertHandler) ListAlerts(c *fiber.Ctx) error {
+	userID, ok := c.Locals("userId").(uint)
+	if !ok || userID == 0 {
+		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "user token required"})
+	}
 	elderID := c.Query("elderId")
 	alertType := c.Query("alertType")
 	status := c.Query("status")
@@ -81,22 +89,21 @@ func (h *AlertHandler) ListAlerts(c *fiber.Ctx) error {
 		end, _ = time.Parse(time.RFC3339, endStr)
 	}
 
-	userID := uint(0)
-	if uid, ok := c.Locals("userId").(uint); ok {
-		userID = uid
-	}
-
 	data, err := h.svc.ListAlerts(userID, elderID, alertType, status, start, end, page, pageSize)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"code": 500, "message": err.Error()})
+		return c.Status(403).JSON(fiber.Map{"code": 403, "message": err.Error()})
 	}
 	return c.JSON(fiber.Map{"code": 0, "data": data})
 }
 
 // GET /api/v1/alert/:alertId  (七.7)
 func (h *AlertHandler) GetAlertDetail(c *fiber.Ctx) error {
+	userID, ok := c.Locals("userId").(uint)
+	if !ok || userID == 0 {
+		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "user token required"})
+	}
 	alertID := c.Params("alertId")
-	data, err := h.svc.GetAlertDetail(alertID)
+	data, err := h.svc.GetAlertDetail(userID, alertID)
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"code": 404, "message": err.Error()})
 	}
@@ -107,7 +114,6 @@ func (h *AlertHandler) GetAlertDetail(c *fiber.Ctx) error {
 func (h *AlertHandler) ResolveAlert(c *fiber.Ctx) error {
 	alertID := c.Params("alertId")
 	var req struct {
-		OperatorID uint   `json:"operatorId"`
 		Resolution string `json:"resolution"`
 		Severity   string `json:"severity"`
 	}
@@ -115,13 +121,12 @@ func (h *AlertHandler) ResolveAlert(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": "invalid request"})
 	}
 
-	if req.OperatorID == 0 {
-		if uid, ok := c.Locals("userId").(uint); ok {
-			req.OperatorID = uid
-		}
+	operatorID, ok := c.Locals("userId").(uint)
+	if !ok || operatorID == 0 {
+		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "user token required"})
 	}
 
-	if err := h.svc.UpdateAlertStatus(alertID, "resolve", req.OperatorID, req.Resolution); err != nil {
+	if err := h.svc.UpdateAlertStatus(alertID, "resolve", operatorID, req.Resolution); err != nil {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": err.Error()})
 	}
 	return c.JSON(fiber.Map{"code": 0, "message": "alert resolved"})
@@ -129,13 +134,17 @@ func (h *AlertHandler) ResolveAlert(c *fiber.Ctx) error {
 
 // GET /api/v1/alert/statistics  (七.9)
 func (h *AlertHandler) GetStatistics(c *fiber.Ctx) error {
+	userID, ok := c.Locals("userId").(uint)
+	if !ok || userID == 0 {
+		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "user token required"})
+	}
 	elderID := c.Query("elderId")
 	period := c.Query("period", "week")
 	date := c.Query("date")
 
-	data, err := h.svc.GetStatistics(elderID, period, date)
+	data, err := h.svc.GetStatistics(userID, elderID, period, date)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"code": 500, "message": err.Error()})
+		return c.Status(403).JSON(fiber.Map{"code": 403, "message": err.Error()})
 	}
 	return c.JSON(fiber.Map{"code": 0, "data": data})
 }

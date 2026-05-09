@@ -34,10 +34,14 @@ func (h *MedicationHandler) CreatePlan(c *fiber.Ctx) error {
 
 // GET /api/v1/medication/plans/:elderId — 获取老人用药计划列表
 func (h *MedicationHandler) ListPlans(c *fiber.Ctx) error {
+	uid, ok := c.Locals("userId").(uint)
+	if !ok || uid == 0 {
+		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "user token required"})
+	}
 	elderID := c.Params("elderId")
-	plans, err := h.svc.ListPlans(elderID)
+	plans, err := h.svc.ListPlans(uid, elderID)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"code": 500, "message": err.Error()})
+		return c.Status(403).JSON(fiber.Map{"code": 403, "message": err.Error()})
 	}
 	if plans == nil {
 		plans = []model.MedicationPlan{}
@@ -73,8 +77,15 @@ func (h *MedicationHandler) DeletePlan(c *fiber.Ctx) error {
 
 // GET /api/v1/device/:deviceId/pending-messages — 硬件轮询待推送消息（用药提醒 + OCR 结果）
 func (h *MedicationHandler) GetPendingMessages(c *fiber.Ctx) error {
-	deviceID := c.Params("deviceId")
-	msgs, err := h.svc.GetPendingMessages(deviceID)
+	urlDeviceID := c.Params("deviceId")
+	jwtDeviceID, _ := c.Locals("deviceId").(string)
+	if jwtDeviceID == "" {
+		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "device token required"})
+	}
+	if urlDeviceID != jwtDeviceID {
+		return c.Status(403).JSON(fiber.Map{"code": 403, "message": "device token does not match url"})
+	}
+	msgs, err := h.svc.GetPendingMessages(jwtDeviceID)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"code": 500, "message": err.Error()})
 	}

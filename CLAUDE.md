@@ -165,11 +165,9 @@ git push gitee master
 - **生产服务器**：`http://47.94.146.53/vg/`（Nginx 80 端口统一入口）
 - **本地开发**：`http://localhost:3000/`
 - **端口**：统一 3000
-- **测试账号**（云服务器）：
-  - 用户名 `VisionGuard` / 手机号 `13322701148` / 密码 `VisionGuard2026#`
-  - 用户名 `ocrtest` / 密码 `test123456`（后端开发测试用）
-- **豆包 API Key**：`ark-632ca022-46e7-4e0d-ae10-fc2cd9e1a2fa-21961`（已写入 .env）
-- **硬件 WiFi**：SSID `wuiPhone 16`，密码 `12345ssDLH`
+- **测试账号**：见团队私有渠道（不再在仓库内记录）
+- **豆包 API Key**：见团队私有渠道（不再在仓库内记录）
+- **硬件 WiFi 凭据**：见团队私有渠道（不再在仓库内记录）
 - **Gitee 仓库**：https://gitee.com/taylorchengitee/vision-guard
 - **硬件团队最新代码**：`hardware/esp32/esp32sense.ino`（已对齐 v1 API）+ `hardware/k210/main.py`
 
@@ -258,11 +256,11 @@ git push gitee master
 | AI | **豆包 API 占位 (2026-05-06)**：`config.go` 新增 `DOUBAO_API_KEY`/`DOUBAO_API_URL`（默认 ark.cn-beijing.volces.com）；`DoubaoService.RecognizeMedicine` 占位（注释包含真实调用格式）；`MockRecognizeMedicine` 基于 OCR 文字关键词模拟识别；`.env.example` 新增豆包配置项
 | AI | **硬件 OCR 接口完善 (2026-05-06)**：新增 `GET /api/v1/ocr/result/latest`（deviceAuth，硬件轮询最新识别结果，按 deviceId 查最近 completed 记录）；新增 `POST /api/v1/device/ocr/image`（deviceAuth，硬件 JPEG 上传备选路由）；`OcrService.GetLatestResult` 查询方法
 | AI | **后端路由扩展 (2026-05-06)**：74→81 条路由（+9 OCR +7 用药 - 去重），十一大业务模块（新增"用药计划与管理"），16→17 表（+MedicationPlan）
-| AI | **豆包 API 正式接入 (2026-05-06)**：OC​R 管线完全替换为豆包 — UploadImage 后异步调用 DoubaoService.RecognizeMedicine（doubao-seed-1.6-vision）；OcrService 依赖 DoubaoService；移除 mockOCR；豆包 Prompt 标准化输出（drugName/specification/indication/usage/warnings/riskLevel/confidence）；.env 填入真实 API Key `ark-632c...`
+| AI | **豆包 API 正式接入 (2026-05-06)**：OC​R 管线完全替换为豆包 — UploadImage 后异步调用 DoubaoService.RecognizeMedicine（doubao-seed-1.6-vision）；OcrService 依赖 DoubaoService；移除 mockOCR；豆包 Prompt 标准化输出（drugName/specification/indication/usage/warnings/riskLevel/confidence）；.env 填入真实 API Key
 | AI | **OCR 响应字段对齐 Android (2026-05-06)**：后端 ListRecords 返回 `list`（对齐 PaginatedData）+ 新增 taskId/ocrText 字段；GetOcrResult 返回 medicineName/dosage/contraindications 等标准化豆包字段
 | AI | **并发写入保护 (2026-05-06)**：新增 `internal/infra/lock.go` Redis 分布式锁（SET NX EX + Lua 脚本安全释放）+ `WithLock` 辅助函数
 | AI | **OC​R 管线完整重写 (2026-05-06)**：上传→豆包异步识别→存储结果→硬件/APP轮询 全链路打通；进度消息改为中文豆包阶段；submission 全量同步 + 云版 APK 重建
-| AI | **ESP32 WiFi/服务器更新 (2026-05-06)**：固件 WiFi SSID → `wuiPhone 16`、密码 → `12345ssDLH`、BASE_URL → `http://47.94.146.53:3000`（云服务器）；submission/hardware 同步
+| AI | **ESP32 WiFi/服务器更新 (2026-05-06)**：固件 WiFi SSID/密码已抽离仓库（见团队私有渠道），BASE_URL → 云服务器；submission/hardware 同步
 | AI | **用药计划闹钟式时间选择 (2026-05-06)**：替换逗号分隔文本输入为 TimePicker 时间片（Chip + 添加/删除按钮）；M3 DatePickerDialog 替代系统 DatePickerDialog（与老人生日同款）
 | AI | **全局渐变背景 (2026-05-06)**：17 页面柔和毛玻璃渐变（上 浅米黄泛粉 #FFF5F0 → 下 纯白）；AppColors.kt 新增 Modifier.gradientBackground() 扩展函数；Scaffold containerColor 改为 Color.Transparent 透出渐变
 | AI | **OCR 硬件轮询 GET 401 修复 (2026-05-06)**：根因 Fiber 路由匹配顺序 — `/api/v1/ocr/result/:taskId`（参数路由, userAuth）注册在 `/api/v1/ocr/result/latest`（精确路由, deviceAuth）之前，Fiber 将 `latest` 当 `:taskId` 值匹配到 userAuth 中间件 → 设备 JWT 通不过用户认证 → 401。修复：精确路由移到参数路由前。同步修复 submission。

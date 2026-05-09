@@ -26,20 +26,19 @@ func (h *BindingHandler) SearchDevice(c *fiber.Ctx) error {
 // POST /api/v1/binding/initiate  (五.2)
 func (h *BindingHandler) InitiateBinding(c *fiber.Ctx) error {
 	var req struct {
-		ElderID    string `json:"elderId"`
-		DeviceID   string `json:"deviceId"`
-		OperatorID uint   `json:"operatorId"`
+		ElderID  string `json:"elderId"`
+		DeviceID string `json:"deviceId"`
 	}
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": "invalid request"})
 	}
-	if req.OperatorID == 0 {
-		if uid, ok := c.Locals("userId").(uint); ok {
-			req.OperatorID = uid
-		}
+
+	operatorID, ok := c.Locals("userId").(uint)
+	if !ok || operatorID == 0 {
+		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "user token required"})
 	}
 
-	resp, err := h.svc.InitiateBinding(req.ElderID, req.DeviceID, req.OperatorID)
+	resp, err := h.svc.InitiateBinding(req.ElderID, req.DeviceID, operatorID)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": err.Error()})
 	}
@@ -48,16 +47,19 @@ func (h *BindingHandler) InitiateBinding(c *fiber.Ctx) error {
 
 // POST /api/v1/binding/confirm  (五.3 - 设备端确认)
 func (h *BindingHandler) ConfirmBinding(c *fiber.Ctx) error {
+	deviceID, _ := c.Locals("deviceId").(string)
+	if deviceID == "" {
+		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "device token required"})
+	}
 	var req struct {
-		DeviceID string `json:"deviceId"`
-		BindID   string `json:"bindId"`
-		Confirm  bool   `json:"confirm"`
+		BindID  string `json:"bindId"`
+		Confirm bool   `json:"confirm"`
 	}
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": "invalid request"})
 	}
 
-	resp, err := h.svc.ConfirmBinding(req.DeviceID, req.BindID, req.Confirm)
+	resp, err := h.svc.ConfirmBinding(deviceID, req.BindID, req.Confirm)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": err.Error()})
 	}

@@ -61,9 +61,8 @@ type ImageUploadReq struct {
 }
 
 type ImageUploadResp struct {
-	ImageID      string `json:"imageId"`
-	TaskID       string `json:"taskId"`
-	FileURL      string `json:"fileUrl"`
+	ImageID     string `json:"imageId"`
+	FileURL     string `json:"fileUrl"`
 	ThumbnailURL string `json:"thumbnailUrl"`
 	UploadedAt  string `json:"uploadedAt"`
 }
@@ -101,7 +100,6 @@ func (s *OcrService) UploadImage(req ImageUploadReq) (*ImageUploadResp, error) {
 
 	return &ImageUploadResp{
 		ImageID:      imageID,
-		TaskID:       record.TaskID,
 		FileURL:      req.FileURL,
 		ThumbnailURL: req.ThumbnailURL,
 		UploadedAt:   time.Now().Format(time.RFC3339),
@@ -152,13 +150,12 @@ func (s *OcrService) GetOcrResult(taskID string) (map[string]interface{}, error)
 	if record.Status == "completed" {
 		result["medicineName"] = record.MedicineName
 		result["ocrText"] = record.OCRText
-		result["medicineSpec"] = record.Specification
-		result["medicineUsage"] = record.Indications
-		result["medicineDosage"] = record.Dosage
-		result["medicineContraindications"] = record.Contraindications
+		result["specification"] = record.Specification
+		result["indications"] = record.Indications
+		result["dosage"] = record.Dosage
+		result["contraindications"] = record.Contraindications
 		result["confidence"] = record.Confidence
 		result["riskLevel"] = record.RiskLevel
-		result["suggestion"] = record.Suggestions
 	} else if record.Status == "failed" {
 		result["failReason"] = record.FailReason
 		result["failDetail"] = record.FailDetail
@@ -224,35 +221,32 @@ func (s *OcrService) RecordFeedback(imageID, suggestionID, feedback, comment str
 // ======================== 历史识别记录查询 (九.7) ========================
 
 func (s *OcrService) ListRecords(userID uint, elderID string, page, pageSize int) (map[string]interface{}, error) {
+	// 必须指定 elderID 且调用者是其监护人
+	if elderID == "" {
+		return nil, fmt.Errorf("elderId is required")
+	}
+	var g model.Guardianship
+	if err := s.db.Where("elder_id = ? AND user_id = ?", elderID, userID).First(&g).Error; err != nil {
+		return nil, fmt.Errorf("not a guardian of this elder")
+	}
+
+	var total int64
+	s.db.Model(&model.OcrRecord{}).Where("elder_id = ?", elderID).Count(&total)
+
+	var records []model.OcrRecord
+	s.db.Where("elder_id = ?", elderID).Order("created_at desc").
+		Offset((page - 1) * pageSize).Limit(pageSize).Find(&records)
+
 	type RecordItem struct {
 		TaskID       string `json:"taskId"`
-		ImageID       string `json:"imageId"`
-		ThumbnailURL  string `json:"thumbnailUrl"`
+		ImageID      string `json:"imageId"`
+		ThumbnailURL string `json:"thumbnailUrl"`
 		MedicineName string `json:"medicineName"`
 		OcrText      string `json:"ocrText"`
 		RiskLevel    string `json:"riskLevel"`
 		Status       string `json:"status"`
 		CreatedAt    string `json:"createdAt"`
 	}
-
-	query := s.db.Model(&model.OcrRecord{})
-	if elderID != "" {
-		query = query.Where("elder_id = ?", elderID)
-	} else if userID > 0 {
-		var elderIDs []string
-		s.db.Model(&model.Guardianship{}).Where("user_id = ?", userID).Pluck("elder_id", &elderIDs)
-		if len(elderIDs) == 0 {
-			return map[string]interface{}{"total": int64(0), "page": page, "pageSize": pageSize, "list": []RecordItem{}}, nil
-		}
-		query = query.Where("elder_id IN ?", elderIDs)
-	}
-
-	var total int64
-	query.Count(&total)
-
-	var records []model.OcrRecord
-	query.Order("created_at desc").
-		Offset((page - 1) * pageSize).Limit(pageSize).Find(&records)
 
 	var items []RecordItem
 	for _, r := range records {

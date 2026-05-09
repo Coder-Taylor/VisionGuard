@@ -55,7 +55,7 @@ func main() {
 		medicationSvc := service.NewMedicationService(db)
 	
 	authH := handler.NewAuthHandler(authSvc, deviceSvc)
-	deviceH := handler.NewDeviceHandler(deviceSvc)
+	deviceH := handler.NewDeviceHandler(deviceSvc, cfg.DeviceActivationToken)
 	elderH := handler.NewElderHandler(elderSvc)
 	bindingH := handler.NewBindingHandler(bindingSvc)
 	alertH := handler.NewAlertHandler(alertSvc)
@@ -131,7 +131,7 @@ func main() {
 	// ---- 五、设备绑定与解绑（7 路由：36.-42.）----
 	app.Get("/api/v1/device/:deviceId/search", userAuth, bindingH.SearchDevice)       // 36. 五.1
 	app.Post("/api/v1/binding/initiate", userAuth, bindingH.InitiateBinding)          // 37. 五.2
-	app.Post("/api/v1/binding/confirm", bindingH.ConfirmBinding)                      // 38. 五.3（设备端调用，无认证）
+	app.Post("/api/v1/binding/confirm", deviceAuth, bindingH.ConfirmBinding)          // 38. 五.3（设备端调用，需 deviceAuth）
 	app.Post("/api/v1/binding/check", userAuth, bindingH.CheckBindConstraint)         // 39. 五.4
 	app.Post("/api/v1/binding/unbind", userAuth, bindingH.Unbind)                     // 40. 五.5
 	app.Post("/api/v1/binding/rebind", userAuth, bindingH.Rebind)                     // 41. 五.6
@@ -139,7 +139,7 @@ func main() {
 
 	// ---- 七、告警事件管理（8 路由：43.-50.）----
 	app.Get("/api/v1/alert/types", alertH.GetAlertTypes)                   // 43. 七.1
-	app.Post("/api/v1/alert", alertH.CreateAlert)                          // 44. 七.2（设备端可调用，无认证）
+	app.Post("/api/v1/alert", deviceAuth, alertH.CreateAlert)              // 44. 七.2（设备端调用，需 deviceAuth）
 	app.Get("/api/v1/alerts", userAuth, alertH.ListAlerts)                 // 45. 七.6
 	app.Get("/api/v1/alert/statistics", userAuth, alertH.GetStatistics)    // 46. 七.9
 	app.Get("/api/v1/alert/level-config", userAuth, alertH.GetLevelConfig) // 47. 七.4
@@ -157,7 +157,7 @@ func main() {
 	app.Delete("/api/v1/geofence/:fenceId", userAuth, locationH.DeleteGeofence)    // 57. 八.6
 
 	// ---- 六、设备数据接收与存储（2 路由：58.-59.）----
-	app.Post("/api/v1/data/health", locationH.SaveHealthData)                      // 58. 六.1（设备端调用，无认证）
+	app.Post("/api/v1/data/health", deviceAuth, locationH.SaveHealthData)          // 58. 六.1（设备端调用，需 deviceAuth）
 	app.Get("/api/v1/data/health", userAuth, locationH.QueryHealthData)            // 59. 六.6
 
 	// ---- 九、药品识别与智能建议（8 路由：60.-67.）----

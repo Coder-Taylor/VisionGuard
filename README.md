@@ -369,7 +369,7 @@ vision-hub/                          # ★ Gitee: gitee.com/taylorchengitee/visi
 │   └── test_all_full.go            # 76 步全路由测试
 │
 ├── hardware/                       # 🔧 硬件固件
-│   ├── esp32/esp32sense.ino        # ★ ESP32 固件（WiFi: wuiPhone 16, 指向云服务器）
+│   ├── esp32/esp32sense.ino        # ★ ESP32 固件（WiFi 凭据见团队私有渠道）
 │   └── k210/                       # K210 AI 视觉（main.py + detect.kmodel）
 │
 ├── submission/                   # 🚀 评委提交版（三端完整源码 + APK + Docker）

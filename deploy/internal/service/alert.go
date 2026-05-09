@@ -22,6 +22,19 @@ func NewAlertService(db *gorm.DB, redis *redis.Client) *AlertService {
 	return &AlertService{db: db, redis: redis}
 }
 
+// userIsGuardianOf 校验 userID 是 elderID 的监护人。
+func (s *AlertService) userIsGuardianOf(userID uint, elderID string) bool {
+	var g model.Guardianship
+	return s.db.Where("elder_id = ? AND user_id = ?", elderID, userID).First(&g).Error == nil
+}
+
+// myElderIDs 列出 userID 担任监护人的所有 elderID。
+func (s *AlertService) myElderIDs(userID uint) []string {
+	var ids []string
+	s.db.Model(&model.Guardianship{}).Where("user_id = ?", userID).Pluck("elder_id", &ids)
+	return ids
+}
+
 // ======================== 告警类型列表 (七.1) ========================
 
 func (s *AlertService) GetAlertTypes() []map[string]interface{} {
@@ -253,6 +266,10 @@ func (s *AlertService) UpdateAlertStatus(alertID, action string, operatorID uint
 // ======================== 告警历史查询 (七.6) ========================
 
 func (s *AlertService) ListAlerts(userID uint, elderID, alertType, status string, start, end time.Time, page, pageSize int) (map[string]interface{}, error) {
+	// 若调用者指定 elderID，强制校验是其监护人；否则按"我监护的全部老人"过滤
+	if elderID != "" && !s.userIsGuardianOf(userID, elderID) {
+		return nil, fmt.Errorf("not a guardian of this elder")
+	}
 	type AlertSummary struct {
 		AlertID        string `json:"alertId"`
 		DeviceID       string `json:"deviceId"`
@@ -329,10 +346,13 @@ func (s *AlertService) ListAlerts(userID uint, elderID, alertType, status string
 
 // ======================== 告警详情 (七.7) ========================
 
-func (s *AlertService) GetAlertDetail(alertID string) (map[string]interface{}, error) {
+func (s *AlertService) GetAlertDetail(userID uint, alertID string) (map[string]interface{}, error) {
 	var alert model.Alert
 	if err := s.db.Where("alert_id = ?", alertID).First(&alert).Error; err != nil {
 		return nil, fmt.Errorf("alert not found")
+	}
+	if alert.ElderID != "" && !s.userIsGuardianOf(userID, alert.ElderID) {
+		return nil, fmt.Errorf("not a guardian of this elder")
 	}
 
 	// 获取老人和设备信息
@@ -383,7 +403,11 @@ func (s *AlertService) GetAlertDetail(alertID string) (map[string]interface{}, e
 
 // ======================== 告警统计 (七.9) ========================
 
-func (s *AlertService) GetStatistics(elderID, period, date string) (map[string]interface{}, error) {
+func (s *AlertService) GetStatistics(userID uint, elderID, period, date string) (map[string]interface{}, error) {
+	// 若指定 elderID 必须是该老人的监护人；未指定则只统计自己监护的老人。
+	if elderID != "" && !s.userIsGuardianOf(userID, elderID) {
+		return nil, fmt.Errorf("not a guardian of this elder")
+	}
 	var start, end time.Time
 	now := time.Now()
 	switch period {
@@ -407,6 +431,19 @@ func (s *AlertService) GetStatistics(elderID, period, date string) (map[string]i
 	query := s.db.Model(&model.Alert{}).Where("created_at BETWEEN ? AND ?", start, end)
 	if elderID != "" {
 		query = query.Where("elder_id = ?", elderID)
+	} else {
+		// 限制为该用户监护的老人
+		ids := s.myElderIDs(userID)
+		if len(ids) == 0 {
+			return map[string]interface{}{
+				"period":      fmt.Sprintf("%s ~ %s", start.Format("2006-01-02"), end.Format("2006-01-02")),
+				"totalAlerts": int64(0),
+				"byType":      map[string]int64{},
+				"byLevel":     map[string]int64{},
+				"byStatus":    map[string]int64{},
+			}, nil
+		}
+		query = query.Where("elder_id IN ?", ids)
 	}
 
 	var totalAlerts int64

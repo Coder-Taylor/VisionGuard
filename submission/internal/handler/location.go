@@ -16,12 +16,24 @@ func NewLocationHandler(svc *service.LocationService) *LocationHandler {
 	return &LocationHandler{svc: svc}
 }
 
+func currentUserID(c *fiber.Ctx) (uint, bool) {
+	uid, ok := c.Locals("userId").(uint)
+	if !ok || uid == 0 {
+		return 0, false
+	}
+	return uid, true
+}
+
 // GET /api/v1/location/latest  (八.1)
 func (h *LocationHandler) GetLatestLocation(c *fiber.Ctx) error {
+	uid, ok := currentUserID(c)
+	if !ok {
+		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "user token required"})
+	}
 	deviceID := c.Query("deviceId")
 	elderID := c.Query("elderId")
 
-	data, err := h.svc.GetLatestLocation(deviceID, elderID)
+	data, err := h.svc.GetLatestLocation(uid, deviceID, elderID)
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"code": 404, "message": err.Error()})
 	}
@@ -30,6 +42,10 @@ func (h *LocationHandler) GetLatestLocation(c *fiber.Ctx) error {
 
 // GET /api/v1/location/trajectory  (八.2)
 func (h *LocationHandler) GetTrajectory(c *fiber.Ctx) error {
+	uid, ok := currentUserID(c)
+	if !ok {
+		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "user token required"})
+	}
 	deviceID := c.Query("deviceId")
 	elderID := c.Query("elderId")
 	startStr := c.Query("start")
@@ -44,7 +60,7 @@ func (h *LocationHandler) GetTrajectory(c *fiber.Ctx) error {
 		end = time.Now()
 	}
 
-	data, err := h.svc.GetTrajectory(deviceID, elderID, start, end)
+	data, err := h.svc.GetTrajectory(uid, deviceID, elderID, start, end)
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"code": 404, "message": err.Error()})
 	}
@@ -53,10 +69,14 @@ func (h *LocationHandler) GetTrajectory(c *fiber.Ctx) error {
 
 // GET /api/v1/device/:deviceId/running  (八.4)
 func (h *LocationHandler) GetRunningData(c *fiber.Ctx) error {
+	uid, ok := currentUserID(c)
+	if !ok {
+		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "user token required"})
+	}
 	deviceID := c.Params("deviceId")
 	elderID := c.Query("elderId")
 
-	data, err := h.svc.GetRunningData(deviceID, elderID)
+	data, err := h.svc.GetRunningData(uid, deviceID, elderID)
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"code": 404, "message": err.Error()})
 	}
@@ -65,6 +85,10 @@ func (h *LocationHandler) GetRunningData(c *fiber.Ctx) error {
 
 // GET /api/v1/location/alert-markers  (八.5)
 func (h *LocationHandler) GetAlertMarkers(c *fiber.Ctx) error {
+	uid, ok := currentUserID(c)
+	if !ok {
+		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "user token required"})
+	}
 	elderID := c.Query("elderId")
 	startStr := c.Query("start")
 	endStr := c.Query("end")
@@ -88,21 +112,25 @@ func (h *LocationHandler) GetAlertMarkers(c *fiber.Ctx) error {
 		}
 	}
 
-	data, err := h.svc.GetAlertMarkers(elderID, start, end, types)
+	data, err := h.svc.GetAlertMarkers(uid, elderID, start, end, types)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"code": 500, "message": err.Error()})
+		return c.Status(403).JSON(fiber.Map{"code": 403, "message": err.Error()})
 	}
 	return c.JSON(fiber.Map{"code": 0, "data": data})
 }
 
 // POST /api/v1/geofence  (八.6)
 func (h *LocationHandler) CreateGeofence(c *fiber.Ctx) error {
+	uid, ok := currentUserID(c)
+	if !ok {
+		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "user token required"})
+	}
 	var req service.GeofenceCreateReq
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": "invalid request"})
 	}
 
-	fence, err := h.svc.CreateGeofence(req)
+	fence, err := h.svc.CreateGeofence(uid, req)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": err.Error()})
 	}
@@ -111,29 +139,43 @@ func (h *LocationHandler) CreateGeofence(c *fiber.Ctx) error {
 
 // GET /api/v1/geofences  (八.6)
 func (h *LocationHandler) ListGeofences(c *fiber.Ctx) error {
+	uid, ok := currentUserID(c)
+	if !ok {
+		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "user token required"})
+	}
 	elderID := c.Query("elderId")
-	fences, err := h.svc.ListGeofences(elderID)
+	fences, err := h.svc.ListGeofences(uid, elderID)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"code": 500, "message": err.Error()})
+		return c.Status(403).JSON(fiber.Map{"code": 403, "message": err.Error()})
 	}
 	return c.JSON(fiber.Map{"code": 0, "data": fences})
 }
 
 // DELETE /api/v1/geofence/:fenceId  (八.6)
 func (h *LocationHandler) DeleteGeofence(c *fiber.Ctx) error {
+	uid, ok := currentUserID(c)
+	if !ok {
+		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "user token required"})
+	}
 	fenceID := c.Params("fenceId")
-	if err := h.svc.DeleteGeofence(fenceID); err != nil {
+	if err := h.svc.DeleteGeofence(uid, fenceID); err != nil {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": err.Error()})
 	}
 	return c.JSON(fiber.Map{"code": 0, "message": "geofence deleted"})
 }
 
-// POST /api/v1/data/health  (六.1)
+// POST /api/v1/data/health  (六.1) — 设备调用，需 deviceAuth
 func (h *LocationHandler) SaveHealthData(c *fiber.Ctx) error {
+	deviceID, _ := c.Locals("deviceId").(string)
+	if deviceID == "" {
+		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "device token required"})
+	}
 	var req service.HealthDataReq
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": "invalid request"})
 	}
+	// 强制覆盖 deviceID 为 JWT 中身份，防止设备伪造他人健康数据
+	req.DeviceID = deviceID
 
 	resp, err := h.svc.SaveHealthData(req)
 	if err != nil {
@@ -148,6 +190,10 @@ func (h *LocationHandler) SaveHealthData(c *fiber.Ctx) error {
 
 // GET /api/v1/data/health  (六.6)
 func (h *LocationHandler) QueryHealthData(c *fiber.Ctx) error {
+	uid, ok := currentUserID(c)
+	if !ok {
+		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "user token required"})
+	}
 	elderID := c.Query("elderId")
 	deviceID := c.Query("deviceId")
 	dataType := c.Query("type")
@@ -159,9 +205,9 @@ func (h *LocationHandler) QueryHealthData(c *fiber.Ctx) error {
 	start, _ := time.Parse(time.RFC3339, startStr)
 	end, _ := time.Parse(time.RFC3339, endStr)
 
-	data, err := h.svc.QueryHealthData(elderID, deviceID, dataType, start, end, page, pageSize)
+	data, err := h.svc.QueryHealthData(uid, elderID, deviceID, dataType, start, end, page, pageSize)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"code": 500, "message": err.Error()})
+		return c.Status(403).JSON(fiber.Map{"code": 403, "message": err.Error()})
 	}
 	return c.JSON(fiber.Map{"code": 0, "data": data})
 }

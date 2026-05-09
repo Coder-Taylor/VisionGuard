@@ -1,21 +1,24 @@
 # 生产环境一键部署：后端 + 全部中间件
+# 注意：postgres / redis 仅绑 127.0.0.1，外部不可访问。
+# 跨主机访问时改为内网 IP，并务必配合防火墙规则。
 services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: ${DB_USER:-visionhub}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-visionhub}
+      POSTGRES_USER: ${DB_USER:?DB_USER is required}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       POSTGRES_DB: ${DB_NAME:-visionhub}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: always
 
   redis:
     image: redis:7-alpine
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"]
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     restart: always
 
   backend:

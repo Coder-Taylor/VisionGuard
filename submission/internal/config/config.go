@@ -1,6 +1,9 @@
 package config
 
-import "os"
+import (
+	"log"
+	"os"
+)
 
 type Config struct {
 	ServerPort string
@@ -11,13 +14,15 @@ type Config struct {
 	DBPass string
 	DBName string
 
-	RedisHost string
-	RedisPort string
+	RedisHost     string
+	RedisPort     string
+	RedisPassword string
 
 	JWTSecret string
 
-	DeviceUniqueCode string
-	DeviceXORKey     byte
+	DeviceUniqueCode      string
+	DeviceXORKey          byte
+	DeviceActivationToken string // 出厂共享激活口令，硬件首次激活时必须以 X-Activation-Token 头携带
 
 	OCRServiceURL string
 
@@ -28,6 +33,14 @@ type Config struct {
 }
 
 func Load() *Config {
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET is required and must not be empty; refusing to start with an unsigned token surface")
+	}
+	if len(jwtSecret) < 32 {
+		log.Fatal("JWT_SECRET must be at least 32 characters")
+	}
+
 	return &Config{
 		ServerPort: getEnv("SERVER_PORT", "8888"),
 
@@ -37,13 +50,15 @@ func Load() *Config {
 		DBPass: getEnv("DB_PASSWORD", "visionhub"),
 		DBName: getEnv("DB_NAME", "visionhub"),
 
-		RedisHost: getEnv("REDIS_HOST", "localhost"),
-		RedisPort: getEnv("REDIS_PORT", "6379"),
+		RedisHost:     getEnv("REDIS_HOST", "localhost"),
+		RedisPort:     getEnv("REDIS_PORT", "6379"),
+		RedisPassword: os.Getenv("REDIS_PASSWORD"),
 
-		JWTSecret: getEnv("JWT_SECRET", ""),
+		JWTSecret: jwtSecret,
 
-		DeviceUniqueCode: getEnv("DEVICE_UNIQUE_CODE", "DEVICE_2026_ESP32_K210"),
-		DeviceXORKey:     0x4B,
+		DeviceUniqueCode:      getEnv("DEVICE_UNIQUE_CODE", "DEVICE_2026_ESP32_K210"),
+		DeviceXORKey:          0x4B,
+		DeviceActivationToken: os.Getenv("DEVICE_ACTIVATION_TOKEN"),
 
 		OCRServiceURL: getEnv("OCR_SERVICE_URL", ""),
 

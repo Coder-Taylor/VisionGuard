@@ -1,16 +1,39 @@
 package handler
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/jry21223/vision-hub/backend/internal/service"
 )
+
+// 设备 ID 白名单：仅允许字母、数字、下划线、连字符。
+// 防止从用户输入构造的目录名出现 ".." 或路径分隔符。
+var safeDeviceIDRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
+// 仅允许图片扩展名（小写，不带点）。
+var allowedImageExt = map[string]string{
+	"jpg":  ".jpg",
+	"jpeg": ".jpg",
+	"png":  ".png",
+}
+
+// 8MB 上限，与 Fiber 默认 4MB 不同；超过直接拒绝
+const maxOCRImageBytes = 8 * 1024 * 1024
+
+func randomFilenameSuffix() string {
+	var b [6]byte
+	_, _ = rand.Read(b[:])
+	return hex.EncodeToString(b[:])
+}
 
 type OcrHandler struct {
 	svc       *service.OcrService
@@ -37,10 +60,29 @@ func (h *OcrHandler) UploadImage(c *fiber.Ctx) error {
 		if err != nil {
 			return c.Status(400).JSON(fiber.Map{"code": 400, "message": "missing image file: " + err.Error()})
 		}
+		if file.Size > maxOCRImageBytes {
+			return c.Status(413).JSON(fiber.Map{"code": 413, "message": "image too large"})
+		}
 
-		deviceID := c.FormValue("deviceId", "unknown")
+		// 设备路由优先使用 JWT 子身份，避免设备 A 借自己的 token 上传到设备 B 的目录。
+		// Android 路由没有 deviceAuth，仍允许通过 form 提供 deviceId（已与 elderId 一并归属校验在 service 层）。
+		deviceID, _ := c.Locals("deviceId").(string)
+		if deviceID == "" {
+			deviceID = c.FormValue("deviceId")
+		}
+		if !safeDeviceIDRe.MatchString(deviceID) {
+			return c.Status(400).JSON(fiber.Map{"code": 400, "message": "invalid deviceId"})
+		}
+
 		elderID := c.FormValue("elderId")
 		category := c.FormValue("category", "medicine")
+
+		// 仅按上传文件名拿到的扩展名做白名单匹配
+		rawExt := strings.ToLower(strings.TrimPrefix(filepath.Ext(file.Filename), "."))
+		ext, ok := allowedImageExt[rawExt]
+		if !ok {
+			return c.Status(415).JSON(fiber.Map{"code": 415, "message": "unsupported image type"})
+		}
 
 		src, err := file.Open()
 		if err != nil {
@@ -49,15 +91,12 @@ func (h *OcrHandler) UploadImage(c *fiber.Ctx) error {
 		defer src.Close()
 
 		deviceDir := filepath.Join(h.uploadDir, deviceID, "images")
-		if err := os.MkdirAll(deviceDir, 0755); err != nil {
+		if err := os.MkdirAll(deviceDir, 0750); err != nil {
 			return c.Status(500).JSON(fiber.Map{"code": 500, "message": "cannot create upload directory"})
 		}
 
-		ext := filepath.Ext(file.Filename)
-		if ext == "" {
-			ext = ".jpg"
-		}
-		savedName := fmt.Sprintf("%s%s", time.Now().Format("20060102_150405"), ext)
+		// 时间戳到秒粒度并发会撞名，叠加 12 位随机后缀防覆盖。
+		savedName := fmt.Sprintf("%s_%s%s", time.Now().Format("20060102_150405"), randomFilenameSuffix(), ext)
 		savedPath := filepath.Join(deviceDir, savedName)
 
 		dst, err := os.Create(savedPath)
@@ -180,9 +219,10 @@ func (h *OcrHandler) RecordFeedback(c *fiber.Ctx) error {
 
 // GET /api/v1/ocr/result/latest — 硬件轮询最新识别结果（返回纯文本播报）
 func (h *OcrHandler) GetLatestResult(c *fiber.Ctx) error {
-	deviceID := c.Query("deviceId")
+	// 设备路由必须从 JWT 拿 deviceID，不接受 query 覆盖
+	deviceID, _ := c.Locals("deviceId").(string)
 	if deviceID == "" {
-		return c.Status(400).JSON(fiber.Map{"code": 400, "message": "deviceId is required"})
+		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "device token required"})
 	}
 	record, err := h.svc.GetLatestResult(deviceID)
 	if err != nil {
@@ -198,18 +238,17 @@ func (h *OcrHandler) GetLatestResult(c *fiber.Ctx) error {
 
 // GET /api/v1/ocr/records
 func (h *OcrHandler) ListRecords(c *fiber.Ctx) error {
+	uid, ok := c.Locals("userId").(uint)
+	if !ok || uid == 0 {
+		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "user token required"})
+	}
 	elderID := c.Query("elderId")
 	page := c.QueryInt("page", 1)
 	pageSize := c.QueryInt("pageSize", 20)
 
-	userID := uint(0)
-	if uid, ok := c.Locals("userId").(uint); ok {
-		userID = uid
-	}
-
-	data, err := h.svc.ListRecords(userID, elderID, page, pageSize)
+	data, err := h.svc.ListRecords(uid, elderID, page, pageSize)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"code": 500, "message": err.Error()})
+		return c.Status(403).JSON(fiber.Map{"code": 403, "message": err.Error()})
 	}
 	return c.JSON(fiber.Map{"code": 0, "data": data})
 }

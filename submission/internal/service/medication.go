@@ -41,7 +41,11 @@ func (s *MedicationService) DeletePlan(planID string, userID uint) error {
 	return s.db.Where("plan_id = ? AND created_by = ?", planID, userID).Delete(&model.MedicationPlan{}).Error
 }
 
-func (s *MedicationService) ListPlans(elderID string) ([]model.MedicationPlan, error) {
+func (s *MedicationService) ListPlans(userID uint, elderID string) ([]model.MedicationPlan, error) {
+	var g model.Guardianship
+	if err := s.db.Where("elder_id = ? AND user_id = ?", elderID, userID).First(&g).Error; err != nil {
+		return nil, fmt.Errorf("not a guardian of this elder")
+	}
 	var plans []model.MedicationPlan
 	err := s.db.Where("elder_id = ?", elderID).Order("created_at desc").Find(&plans).Error
 	return plans, err

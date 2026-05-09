@@ -2,12 +2,10 @@ package service
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -43,7 +41,11 @@ func (s *MedicationService) DeletePlan(planID string, userID uint) error {
 	return s.db.Where("plan_id = ? AND created_by = ?", planID, userID).Delete(&model.MedicationPlan{}).Error
 }
 
-func (s *MedicationService) ListPlans(elderID string) ([]model.MedicationPlan, error) {
+func (s *MedicationService) ListPlans(userID uint, elderID string) ([]model.MedicationPlan, error) {
+	var g model.Guardianship
+	if err := s.db.Where("elder_id = ? AND user_id = ?", elderID, userID).First(&g).Error; err != nil {
+		return nil, fmt.Errorf("not a guardian of this elder")
+	}
 	var plans []model.MedicationPlan
 	err := s.db.Where("elder_id = ?", elderID).Order("created_at desc").Find(&plans).Error
 	return plans, err
@@ -186,57 +188,6 @@ func (d *DoubaoService) RecognizeMedicine(imageURL string) (*MedicineRecognition
 		}, nil
 	}
 
-	// 将图片转为 base64 data URL（优先从本地文件读取，再尝试 HTTP 下载，最终使用原始 URL）
-	imageDataURL := imageURL
-
-	// 1. 如果已经是 data: URL，直接使用
-	if strings.HasPrefix(imageURL, "data:") {
-		imageDataURL = imageURL
-	} else {
-		var imageBytes []byte
-		var mimeType string
-
-		// 2. 尝试作为本地文件读取
-		if filepath, ok := extractLocalPath(imageURL); ok {
-			data, err := os.ReadFile(filepath)
-			if err == nil {
-				imageBytes = data
-				if strings.HasSuffix(filepath, ".png") {
-					mimeType = "image/png"
-				} else {
-					mimeType = "image/jpeg"
-				}
-				fmt.Printf("[Doubao] 从本地文件读取: %s (%d bytes)\n", filepath, len(data))
-			}
-		}
-
-		// 3. 尝试从 URL 下载
-		if len(imageBytes) == 0 && (strings.HasPrefix(imageURL, "http://") || strings.HasPrefix(imageURL, "https://")) {
-			resp, err := d.httpClient.Get(imageURL)
-			if err == nil && resp.StatusCode == 200 {
-				defer resp.Body.Close()
-				data, err := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024)) // 10MB 上限
-				if err == nil && len(data) > 0 {
-					imageBytes = data
-					ct := resp.Header.Get("Content-Type")
-					if ct != "" {
-						mimeType = ct
-					} else {
-						mimeType = "image/jpeg"
-					}
-					fmt.Printf("[Doubao] 从URL下载: %s (%d bytes)\n", imageURL, len(data))
-				}
-			}
-		}
-
-		if len(imageBytes) > 0 {
-			if mimeType == "" {
-				mimeType = "image/jpeg"
-			}
-			imageDataURL = fmt.Sprintf("data:%s;base64,%s", mimeType, base64.StdEncoding.EncodeToString(imageBytes))
-		}
-	}
-
 	reqBody := map[string]interface{}{
 		"model": d.config.Model,
 		"messages": []map[string]interface{}{
@@ -245,7 +196,7 @@ func (d *DoubaoService) RecognizeMedicine(imageURL string) (*MedicineRecognition
 				"content": []map[string]interface{}{
 					{
 						"type":      "image_url",
-						"image_url": map[string]string{"url": imageDataURL},
+						"image_url": map[string]string{"url": imageURL},
 					},
 					{"type": "text", "text": doubaoPrompt},
 				},
@@ -300,15 +251,6 @@ func (d *DoubaoService) RecognizeMedicine(imageURL string) (*MedicineRecognition
 		SpeakText: speakText,
 		DrugName:  drugName,
 	}, nil
-}
-
-// extractLocalPath 从 URL 中提取本地文件路径
-// "http://47.94.146.53/vg/uploads/DEV_xxx/images/xxx.jpg" → "uploads/DEV_xxx/images/xxx.jpg"
-func extractLocalPath(url string) (string, bool) {
-	if idx := strings.Index(url, "/uploads/"); idx >= 0 {
-		return url[idx+1:], true // 去掉前导 /
-	}
-	return "", false
 }
 
 func (d *DoubaoService) MockRecognizeMedicine(ocrText string) *MedicineRecognitionResult {
