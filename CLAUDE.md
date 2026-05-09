@@ -6,6 +6,8 @@ This file provides guidance to Claude Code when working with code in this reposi
 > 
 > **💡 如果你的任务是 Android 开发**：请先读 `docs/业务流程与后端设计.md`（全部接口+认证+DB），然后看 `docs/Android-UI设计文档.md`（UI 设计规范+页面结构）。
 >
+> **💡 如果你的任务是 Web 开发**：请先读 `submission/web/README.md`，项目源码在 `submission/web/`（React + TypeScript + Vite + Tailwind CSS）。网页版仅存在于 submission/，其他版本不需要同步。
+>
 > **💡 如果你的任务是后端开发**：继续往下读。
 
 ## User profile
@@ -67,6 +69,26 @@ This file provides guidance to Claude Code when working with code in this reposi
 - [ ] 硬件改动 → `submission/hardware/` ↔ `hardware/` 双向同步
 - [ ] `submission/android/app/build.gradle.kts` minSdk = 31
 - [ ] 新增文件已在 submission 中存在
+- [ ] Web 改动 → 仅更新 `submission/web/`（不需要同步到 backend/ 或 deploy/）
+
+### 网页版规则（2026-05-09）
+
+**网页版仅存在于 `submission/web/`**，不在 `backend/` 或 `deploy/` 中。
+
+> **技术栈**：React 18 + TypeScript + Vite + Tailwind CSS 4 + React Router v7 + axios
+>
+> **设计系统**：对齐 Android `AppColors.kt`（色值/圆角/渐变），Tailwind `@theme` 自定义色板。
+>
+> **API**：复用后端全部接口（`/vg/api/v1/...`），axios JWT 拦截器 + 401 自动刷新，对齐 Android `RetrofitClient.TokenAuthenticator`。
+>
+> **页面对齐**：Web 17 页 ↔ Android 18 页（跳过 ESP32 直连的 DeviceScreen）。
+
+**Android + Web 同步更新铁律**：
+1. 每次修改 Android 功能，必须同步修改 Web（反之亦然）
+2. 两者共用同一后端 API，字段对齐 Android 的数据模型（`ApiModels.kt`）
+3. Web 开发 `npm run dev`（Vite proxy 代理到 `47.94.146.53/vg`）
+4. Web 构建 `npm run build` → `dist/`
+5. **网页版暂不部署**，等待用户指示部署位置
 
 ### 服务器部署流程
 

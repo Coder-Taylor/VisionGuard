@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/joho/godotenv"
 	"github.com/jry21223/vision-hub/backend/internal/config"
 	"github.com/jry21223/vision-hub/backend/internal/handler"
@@ -70,8 +71,15 @@ func main() {
 
 	app := fiber.New()
 
-		// 静态文件 — OCR 上传的图片
-		app.Static("/uploads", "./uploads")
+	// CORS — 允许网页版跨域访问
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: "*",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization, X-Activation-Token",
+		AllowMethods: "GET, POST, PUT, DELETE, OPTIONS",
+	}))
+
+	// 静态文件 — OCR 上传的图片
+	app.Static("/uploads", "./uploads")
 
 		// ═══════════════════════════════════════════════════════════════
 		// 路由注册（共 74 条，序号 1-74，业务标注保留）
