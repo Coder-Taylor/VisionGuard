@@ -25,7 +25,7 @@
 | **提交评委版** | `submission/` | 三端完整源码+APK（交给评委） |
 | **云端部署版** | `deploy/` | 纯后端+Docker，服务器 git pull 直接部署 |
 
-> **代码流**：改 `backend/` → `./server-deploy.sh` → 同步到 `deploy/` → 自动推送+部署。
+> **代码流**：改 `backend/` → `bash server-deploy.sh` → 同步到 `deploy/` → scp 推送 → Docker 重建 → 清理源码。
 
 ---
 
@@ -762,11 +762,11 @@ echo -e "\n=== 全部 6 步完成 ==="
 ## 十三、云服务器部署
 
 > **生产地址**：`http://47.94.146.53/vg`（Nginx 80 端口统一入口）
-> **前提**：服务器安装 Docker，代码已 push 并 pull 到服务器
+> **前提**：服务器安装 Docker，本地可 SSH 免密登录
 
 ```bash
-# ★ 一键部署：backend/ → deploy/ → rsync 推送服务器 → Docker 重建
-./server-deploy.sh
+# ★ 一键部署（Windows 可用）：cp 本地同步 → scp 推送 → Docker 重建 → 清理源码
+bash server-deploy.sh
 ```
 
 # 验证
