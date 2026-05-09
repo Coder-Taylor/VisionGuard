@@ -361,7 +361,7 @@ git push gitee master
   - 个人：ProfileScreen（编辑昵称+4个功能入口）+ UserSettingsScreen（修改密码+手机号换绑）
   - 通知：NotificationListScreen（消息列表+全部已读）
 - Android 构建：`./gradlew :app:assembleRelease` ✅（已签名）
-- Release APK：`apk/VisionGuard-v1.4.1-local.apk`（本地版，127.0.0.1:3000）；`submission/android/apk/VisionGuard-v1.4.6-cloud.apk`（云版，47.94.146.53/vg）
+- Release APK：`apk/VisionGuard-v1.5.0-local.apk`（本地版，127.0.0.1:3000）；`submission/android/apk/VisionGuard-v1.5.0-cloud.apk`（云版，47.94.146.53/vg）
 - submission = 完整四端交付包：后端源码 + Android 完整源码 + 预构建 APK + 硬件固件 + Web 管理后台
 - 云服务器：Dockerfile 国内需加 `ENV GOPROXY=https://goproxy.cn,direct` 解决 go mod download 超时
 - 高德地图 SDK 10.0.600 已集成，API Key 已配置（`d8fe...`，见 local.properties）
