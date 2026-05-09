@@ -56,6 +56,7 @@ export interface UserProfileData {
   displayName: string;
   phone: string;
   email: string;
+  role?: string; // 前端根据 email 推断，VG 后端暂不返回
 }
 
 export interface UpdateProfileReq {

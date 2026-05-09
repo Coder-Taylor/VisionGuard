@@ -9,6 +9,7 @@ interface AuthState {
   userId: number | null;
   displayName: string;
   phone: string;
+  role: string; // 'admin' | 'user'
 }
 
 interface AuthContextType extends AuthState {
@@ -27,6 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userId: null,
     displayName: '',
     phone: '',
+    role: 'user',
   });
 
   // 启动时检查 token
@@ -42,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             userId: profile.userId,
             displayName: profile.displayName || profile.username || '',
             phone: profile.phone || '',
+            role: profile.email === '642132880@qq.com' ? 'admin' : 'user',
           });
         })
         .catch(() => {
@@ -56,12 +59,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (req: LoginReq) => {
     const data: AuthData = await authApi.login(req);
     setTokens(data.accessToken, data.refreshToken);
+    // 登录后获取完整 profile 以拿到 email 判断角色
+    let role = 'user';
+    try {
+      const profile = await authApi.getProfile();
+      role = profile.email === '642132880@qq.com' ? 'admin' : 'user';
+    } catch { /* 降级：沿用默认 user */ }
     setState({
       isLoggedIn: true,
       isLoading: false,
       userId: data.userId,
       displayName: data.displayName || '',
       phone: data.phone || '',
+      role,
     });
   }, []);
 
@@ -81,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       userId: null,
       displayName: '',
       phone: '',
+      role: 'user',
     });
   }, []);
 
