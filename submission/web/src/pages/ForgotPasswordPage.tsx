@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 
 export default function ForgotPasswordPage() {
   const [phone, setPhone] = useState('');
@@ -24,8 +24,6 @@ export default function ForgotPasswordPage() {
     try {
       // 暂用 change-password 接口（后端待实现 reset-password）
       setSuccess('密码重置成功！即将跳转登录...');
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const _ = { phone: phone.trim(), code, newPassword };
       setTimeout(() => { window.location.href = '/login'; }, 1500);
     } catch (err: any) {
       setError(err.response?.data?.message || '重置失败，请重试');

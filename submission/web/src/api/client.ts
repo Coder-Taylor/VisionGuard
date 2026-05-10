@@ -1,7 +1,7 @@
 import axios, { AxiosError } from 'axios';
 import type { ApiResponse, AuthData } from '../types';
 
-const BASE_URL = import.meta.env.DEV ? '/vg' : 'http://47.94.146.53/vg';
+const BASE_URL = '/vg';
 
 const client = axios.create({
   baseURL: BASE_URL,
