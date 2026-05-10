@@ -72,6 +72,7 @@ import com.example.myapplication.ui.components.AppSecondaryButton
 import com.example.myapplication.ui.components.EmptyState
 import com.example.myapplication.ui.components.UnreadBadge
 import com.example.myapplication.util.ErrorHelper
+import com.example.myapplication.util.TimeFormat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -408,7 +409,7 @@ private fun NewAlertCard(
                 AlertInfoRow(label = "告警类型", value = mapAlertType(type))
             }
             alert.createdAt?.let { time ->
-                AlertInfoRow(label = "告警时间", value = time)
+                AlertInfoRow(label = "告警时间", value = TimeFormat.alertTime(time))
             }
             alert.deviceId?.let { deviceId ->
                 AlertInfoRow(label = "设备 ID", value = deviceId)
@@ -451,7 +452,7 @@ private fun AlertHistoryCard(
     alert: AlertData,
     onClick: () -> Unit,
 ) {
-    val timeStr = alert.createdAt?.takeLast(8)?.take(5) ?: alert.createdAt ?: ""
+    val timeStr = TimeFormat.alertTime(alert.createdAt)
     val typeColor = when (alert.alertType) {
         "fall", "sos" -> AlertRed
         "device_offline", "low_battery" -> OfflineGray

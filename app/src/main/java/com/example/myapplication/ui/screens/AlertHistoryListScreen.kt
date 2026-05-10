@@ -47,6 +47,7 @@ import com.example.myapplication.ui.components.EmptyState
 import com.example.myapplication.ui.components.SectionTitle
 import com.example.myapplication.ui.components.UnreadBadge
 import com.example.myapplication.util.ErrorHelper
+import com.example.myapplication.util.TimeFormat
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterialApi::class)
@@ -125,7 +126,7 @@ internal fun AlertHistoryListScreen(
                 ) {
                     items(alerts.size) { index ->
                         val alert = alerts[index]
-                        val timeStr = alert.createdAt?.takeLast(8)?.take(5) ?: alert.createdAt ?: ""
+                        val timeStr = TimeFormat.alertTime(alert.createdAt)
 
                         Card(
                             onClick = { onAlertClick(alert.alertId ?: "") },

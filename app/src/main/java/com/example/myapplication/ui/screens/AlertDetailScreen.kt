@@ -47,6 +47,7 @@ import com.example.myapplication.ui.TextSecondary
 import com.example.myapplication.ui.White
 import com.example.myapplication.ui.components.AppPrimaryButton
 import com.example.myapplication.util.ErrorHelper
+import com.example.myapplication.util.TimeFormat
 import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.Color
 
@@ -119,7 +120,7 @@ internal fun AlertDetailScreen(
                 // 详细信息
                 item {
                     DetailCard {
-                        DetailRow("告警时间", detail.createdAt ?: "-")
+                        DetailRow("告警时间", TimeFormat.alertTime(detail.createdAt))
                         DetailRow("设备 ID", detail.deviceId ?: "-")
                         DetailRow("老人 ID", detail.elderId ?: "-")
                         if (!detail.description.isNullOrBlank()) {
@@ -143,7 +144,7 @@ internal fun AlertDetailScreen(
                             modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                         )
                         timeline.forEach { entry ->
-                            val time = entry["at"]?.toString() ?: ""
+                            val time = TimeFormat.alertTime(entry["at"]?.toString())
                             val action = entry["action"]?.toString() ?: ""
                             val by = entry["by"]?.toString() ?: ""
                             TimelineItem(

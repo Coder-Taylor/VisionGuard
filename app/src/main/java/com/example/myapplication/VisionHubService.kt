@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.os.SystemClock
+import com.example.myapplication.api.RetrofitClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -30,6 +31,12 @@ class VisionHubService : Service() {
     private var fallDetectionEngine = FallDetectionEngine()
     private val localVisionAnalyzer = LocalVisionAnalyzer()
     private val latencyMonitor = DeviceLatencyMonitor(scope = serviceScope)
+
+    // 已推送过的告警 ID，避免重复通知
+    private val knownAlertIds = mutableSetOf<String>()
+    // 上次轮询的 pending 告警数
+    @Volatile
+    private var lastPendingCount = 0
     @SuppressLint("WakelockTimeout")
     override fun onCreate() {
         super.onCreate()
@@ -48,6 +55,7 @@ class VisionHubService : Service() {
         }
         observeFallConfig()
         observeRecognitionState()
+        startAlertPolling()
         latencyMonitor.start()
     }
 
@@ -173,6 +181,57 @@ class VisionHubService : Service() {
                 }
             }
         }
+    }
+
+    // ======================== 后台轮询云端告警 ========================
+    // 每 30s 拉取 pending 告警，新告警弹出系统通知（类似微信消息推送）
+    private fun startAlertPolling() {
+        serviceScope.launch {
+            // 首次等待 10s，让 APP 完成登录和首页数据加载
+            delay(10_000L)
+            while (isActive) {
+                try {
+                    val resp = RetrofitClient.alertApi.listAlerts(status = "pending", pageSize = 10)
+                    if (resp.isSuccessful) {
+                        val alerts = resp.body()?.data?.list ?: emptyList()
+                        val currentCount = alerts.size
+
+                        // 只处理首次加载后新增的告警
+                        if (lastPendingCount > 0 || knownAlertIds.isNotEmpty()) {
+                            for (alert in alerts) {
+                                val id = alert.alertId ?: continue
+                                if (id !in knownAlertIds) {
+                                    knownAlertIds.add(id)
+                                    val title = alert.alertType?.let { mapAlertTypeName(it) } ?: "新告警"
+                                    val body = alert.description ?: "设备 ${alert.deviceId ?: ""} 触发告警"
+                                    NotificationHelper.showAlertNotification(
+                                        this@VisionHubService, title, body
+                                    )
+                                }
+                            }
+                        } else {
+                            // 首次加载：记录已有告警，不弹通知
+                            alerts.forEach { it.alertId?.let { id -> knownAlertIds.add(id) } }
+                        }
+                        lastPendingCount = currentCount
+                    }
+                } catch (_: Exception) {
+                    // 网络异常静默忽略，下轮重试
+                }
+                delay(30_000L)
+            }
+        }
+    }
+
+    private fun mapAlertTypeName(type: String): String = when (type) {
+        "fall" -> "摔倒告警"
+        "obstacle" -> "避障危险"
+        "sos" -> "紧急呼叫"
+        "heart_rate_abnormal" -> "心率异常"
+        "low_battery" -> "低电量"
+        "device_offline" -> "设备离线"
+        "geofence" -> "电子围栏"
+        else -> type
     }
 
     private fun shouldSwitchToWaitingForNewFrame(state: LocalVisionState): Boolean {
