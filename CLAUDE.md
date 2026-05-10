@@ -195,11 +195,31 @@ python3 test_ocr.py             # OCR 全链路测试
 
 Kotlin + Jetpack Compose + Material 3, minSdk 35, 18 页面。
 
+### ⚠️ 构建铁律（省 token）
+
+1. **gradlew 不存在**：项目 `.gitignore` 排除了 `gradlew*`，不能假设它在。直接用系统 Gradle 缓存构建。
+2. **Gradle 路径**：`C:/Users/HONOR/.gradle/wrapper/dists/gradle-9.1.0-bin/<hash>/gradle-9.1.0/bin/gradle`
+3. **不要生成 wrapper**：Gradle 9.x 已移除 `wrapper` task，白白浪费一轮构建时间。直接用 `gradle assembleRelease -p <dir>`。
+4. **先改代码再构建**：一次 build ~1 分钟，确保代码无编译错误再 build，避免两次。
+5. **云版必须用 submission/android/**：`submission/android/` 的 RetrofitClient.kt BASE_URL 是云地址 `47.94.146.53/vg/`，`app/` 是 `127.0.0.1:3000/`。部署手机必须构建云版。
+
 ```bash
-cd app
-./gradlew assembleDebug
-./gradlew assembleRelease    # 签名 APK（本地版 → apk/；云版 → submission/android/apk/）
+# 一键云版构建 + 安装（从项目根目录）
+G="C:/Users/HONOR/.gradle/wrapper/dists/gradle-9.1.0-bin/$(ls C:/Users/HONOR/.gradle/wrapper/dists/gradle-9.1.0-bin/ | grep -v CACHEDIR)/gradle-9.1.0/bin/gradle"
+A="C:/Users/HONOR/AppData/Local/Android/Sdk/platform-tools/adb"
+"$G" assembleRelease -p submission/android && \
+"$A" install -r submission/android/app/build/outputs/apk/release/app-release.apk && \
+cp submission/android/app/build/outputs/apk/release/app-release.apk submission/android/apk/VisionGuard-vX.Y.Z-cloud.apk
 ```
+
+```bash
+# 本地版构建（仅验证编译，不部署）
+"$G" assembleRelease -p app
+```
+
+### 源码同步
+
+app/ 源码改动后必须同步到 submission/android/app/src/（含 Kotlin + res），但 RetrofitClient.kt 保持云地址不被覆盖。
 
 ### 真机联调
 
