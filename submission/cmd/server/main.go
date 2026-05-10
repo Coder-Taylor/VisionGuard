@@ -147,7 +147,7 @@ func main() {
 
 	// ---- 七、告警事件管理（8 路由：43.-50.）----
 	app.Get("/api/v1/alert/types", alertH.GetAlertTypes)                   // 43. 七.1
-	app.Post("/api/v1/alert", deviceAuth, alertH.CreateAlert)              // 44. 七.2（设备端调用，需 deviceAuth）
+	app.Post("/api/v1/alert", alertH.CreateAlert)                           // 44. 七.2（无需 JWT，硬件代码不上送）
 	app.Get("/api/v1/alerts", userAuth, alertH.ListAlerts)                 // 45. 七.6
 	app.Get("/api/v1/alert/statistics", userAuth, alertH.GetStatistics)    // 46. 七.9
 	app.Get("/api/v1/alert/level-config", userAuth, alertH.GetLevelConfig) // 47. 七.4
