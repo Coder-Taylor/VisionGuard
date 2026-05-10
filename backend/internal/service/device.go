@@ -241,7 +241,7 @@ func (s *DeviceService) ScanOfflineDevices() {
 	var devices []model.Device
 	s.db.Where("status = ?", "online").Find(&devices)
 
-	threshold := time.Now().Add(-90 * time.Second)
+	threshold := time.Now().Add(-30 * time.Second)
 	for _, dev := range devices {
 		if dev.LastHeartbeatAt == nil || dev.LastHeartbeatAt.Before(threshold) {
 			s.markOffline(dev)

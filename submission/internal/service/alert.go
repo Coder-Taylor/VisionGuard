@@ -193,6 +193,13 @@ func (s *AlertService) CreateAlert(req AlertCreateReq) (*AlertCreateResp, error)
 		return nil, fmt.Errorf("create alert error: %w", err)
 	}
 
+	// 有告警到达说明设备活跃，同步更新设备在线状态（不等心跳）
+	s.db.Model(&model.Device{}).Where("device_id = ?", req.DeviceID).Updates(map[string]any{
+		"status":            "online",
+		"last_heartbeat_at": time.Now(),
+		"last_online_at":    time.Now(),
+	})
+
 	// 生成通知
 	s.createAlertNotifications(alert)
 
