@@ -221,20 +221,31 @@ func (s *OcrService) RecordFeedback(imageID, suggestionID, feedback, comment str
 // ======================== 历史识别记录查询 (九.7) ========================
 
 func (s *OcrService) ListRecords(userID uint, elderID string, page, pageSize int) (map[string]interface{}, error) {
-	// 必须指定 elderID 且调用者是其监护人
-	if elderID == "" {
-		return nil, fmt.Errorf("elderId is required")
+	// 若指定 elderID 则校验监护关系
+	if elderID != "" {
+		var g model.Guardianship
+		if err := s.db.Where("elder_id = ? AND user_id = ?", elderID, userID).First(&g).Error; err != nil {
+			return nil, fmt.Errorf("not a guardian of this elder")
+		}
 	}
-	var g model.Guardianship
-	if err := s.db.Where("elder_id = ? AND user_id = ?", elderID, userID).First(&g).Error; err != nil {
-		return nil, fmt.Errorf("not a guardian of this elder")
+
+	query := s.db.Model(&model.OcrRecord{})
+	if elderID != "" {
+		query = query.Where("elder_id = ?", elderID)
+	} else {
+		var elderIDs []string
+		s.db.Model(&model.Guardianship{}).Where("user_id = ?", userID).Pluck("elder_id", &elderIDs)
+		if len(elderIDs) == 0 {
+			return map[string]interface{}{"total": int64(0), "page": page, "pageSize": pageSize, "list": []interface{}{}}, nil
+		}
+		query = query.Where("elder_id IN ?", elderIDs)
 	}
 
 	var total int64
-	s.db.Model(&model.OcrRecord{}).Where("elder_id = ?", elderID).Count(&total)
+	query.Count(&total)
 
 	var records []model.OcrRecord
-	s.db.Where("elder_id = ?", elderID).Order("created_at desc").
+	query.Order("created_at desc").
 		Offset((page - 1) * pageSize).Limit(pageSize).Find(&records)
 
 	type RecordItem struct {

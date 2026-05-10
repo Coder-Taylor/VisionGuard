@@ -98,7 +98,7 @@ func (s *LocationService) GetLatestLocation(userID uint, deviceID, elderID strin
 
 // ======================== 历史轨迹展示 (八.2) ========================
 
-func (s *LocationService) GetTrajectory(userID uint, deviceID, elderID string, start, end time.Time) (map[string]interface{}, error) {
+func (s *LocationService) GetTrajectory(userID uint, deviceID, elderID string, start, end time.Time) (interface{}, error) {
 	deviceID, _, err := s.authorizeElderAccess(userID, deviceID, elderID)
 	if err != nil {
 		return nil, err
@@ -128,12 +128,7 @@ func (s *LocationService) GetTrajectory(userID uint, deviceID, elderID string, s
 		})
 	}
 
-	return map[string]interface{}{
-		"total":    int64(len(list)),
-		"page":     int64(1),
-		"pageSize": int64(len(list)),
-		"list":     list,
-	}, nil
+	return list, nil
 }
 
 // ======================== 设备基础运行数据展示 (八.4) ========================
@@ -243,13 +238,10 @@ func (s *LocationService) DeleteGeofence(userID uint, fenceID string) error {
 
 // ======================== 定位与告警关联查看 (八.5) ========================
 
-func (s *LocationService) GetAlertMarkers(userID uint, elderID string, start, end time.Time, alertTypes []string) (map[string]interface{}, error) {
+func (s *LocationService) GetAlertMarkers(userID uint, elderID string, start, end time.Time, alertTypes []string) (interface{}, error) {
 	if _, _, err := s.authorizeElderAccess(userID, "", elderID); err != nil {
 		return nil, err
 	}
-	var currentLoc *model.Location
-	s.db.Where("device_id IN (SELECT device_id FROM bindings WHERE elder_id = ? AND status = 'bound')", elderID).
-		Order("created_at desc").First(&currentLoc)
 
 	query := s.db.Model(&model.Alert{}).Where("elder_id = ? AND created_at BETWEEN ? AND ?", elderID, start, end)
 	if len(alertTypes) > 0 {
@@ -282,18 +274,7 @@ func (s *LocationService) GetAlertMarkers(userID uint, elderID string, start, en
 		})
 	}
 
-	result := map[string]interface{}{
-		"alertMarkers": markers,
-	}
-	if currentLoc != nil {
-		result["currentLocation"] = map[string]interface{}{
-			"lat":       currentLoc.Latitude,
-			"lng":       currentLoc.Longitude,
-			"updatedAt": currentLoc.CreatedAt.Format(time.RFC3339),
-		}
-	}
-
-	return result, nil
+	return markers, nil
 }
 
 // ======================== 健康数据接收 (六.1) ========================
@@ -373,6 +354,6 @@ func (s *LocationService) QueryHealthData(userID uint, elderID, deviceID, dataTy
 		"total":    total,
 		"page":     page,
 		"pageSize": pageSize,
-		"records":  records,
+		"list":     records,
 	}, nil
 }

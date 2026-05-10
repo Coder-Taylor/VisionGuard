@@ -24,6 +24,22 @@ func currentUserID(c *fiber.Ctx) (uint, bool) {
 	return uid, true
 }
 
+// parseTime 解析时间字符串，先试 RFC3339（带时区），再试 Android 格式（无时区，按 UTC 处理）
+func parseTime(s string) (time.Time, error) {
+	if s == "" {
+		return time.Time{}, nil
+	}
+	t, err := time.Parse(time.RFC3339, s)
+	if err == nil {
+		return t, nil
+	}
+	t, err = time.Parse("2006-01-02T15:04:05", s)
+	if err == nil {
+		return t, nil
+	}
+	return time.Time{}, err
+}
+
 // GET /api/v1/location/latest  (八.1)
 func (h *LocationHandler) GetLatestLocation(c *fiber.Ctx) error {
 	uid, ok := currentUserID(c)
@@ -51,10 +67,10 @@ func (h *LocationHandler) GetTrajectory(c *fiber.Ctx) error {
 	startStr := c.Query("start")
 	endStr := c.Query("end")
 
-	start, _ := time.Parse(time.RFC3339, startStr)
-	end, _ := time.Parse(time.RFC3339, endStr)
+	start, _ := parseTime(startStr)
+	end, _ := parseTime(endStr)
 	if start.IsZero() {
-		start = time.Now().Add(-6 * time.Hour)
+		start = time.Now().Add(-24 * time.Hour)
 	}
 	if end.IsZero() {
 		end = time.Now()
@@ -93,8 +109,8 @@ func (h *LocationHandler) GetAlertMarkers(c *fiber.Ctx) error {
 	startStr := c.Query("start")
 	endStr := c.Query("end")
 
-	start, _ := time.Parse(time.RFC3339, startStr)
-	end, _ := time.Parse(time.RFC3339, endStr)
+	start, _ := parseTime(startStr)
+	end, _ := parseTime(endStr)
 	if start.IsZero() {
 		start = time.Now().Add(-24 * time.Hour)
 	}
@@ -104,6 +120,13 @@ func (h *LocationHandler) GetAlertMarkers(c *fiber.Ctx) error {
 
 	var types []string
 	if t := c.Query("alertTypes"); t != "" {
+		for _, s := range strings.Split(t, ",") {
+			s = strings.TrimSpace(s)
+			if s != "" {
+				types = append(types, s)
+			}
+		}
+	} else if t := c.Query("alertType"); t != "" {
 		for _, s := range strings.Split(t, ",") {
 			s = strings.TrimSpace(s)
 			if s != "" {
@@ -202,8 +225,8 @@ func (h *LocationHandler) QueryHealthData(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
 	pageSize := c.QueryInt("pageSize", 20)
 
-	start, _ := time.Parse(time.RFC3339, startStr)
-	end, _ := time.Parse(time.RFC3339, endStr)
+	start, _ := parseTime(startStr)
+	end, _ := parseTime(endStr)
 
 	data, err := h.svc.QueryHealthData(uid, elderID, deviceID, dataType, start, end, page, pageSize)
 	if err != nil {

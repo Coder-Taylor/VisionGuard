@@ -48,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.myapplication.api.ApiResponse
 import com.example.myapplication.api.ElderData
 import com.example.myapplication.api.LocationData
 import com.example.myapplication.api.RetrofitClient
@@ -109,17 +110,17 @@ internal fun LocationScreen(
                         latestLocation = locResp.body()!!.data
                     }
                     // 最近24h轨迹
-                    val end = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
-                        .format(java.util.Date())
-                    val start = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
-                        .format(java.util.Date(System.currentTimeMillis() - 86400000))
-                    val trajResp = withContext(Dispatchers.IO) {
-                        RetrofitClient.locationApi.getTrajectory(
+                    val fmt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
+                    val end = fmt.format(java.util.Date()) + "+08:00"
+                    val start = fmt.format(java.util.Date(System.currentTimeMillis() - 86400000)) + "+08:00"
+                    val rawBody = withContext(Dispatchers.IO) {
+                        val resp = RetrofitClient.locationApi.getTrajectory(
                             elderId = targetElder.elderId, start = start, end = end,
                         )
+                        if (resp.isSuccessful) resp.body()?.string() else null
                     }
-                    if (trajResp.isSuccessful) {
-                        trajectory = trajResp.body()?.data?.list ?: emptyList()
+                    if (rawBody != null) {
+                        trajectory = parseTrajectoryData(rawBody) ?: emptyList()
                     }
                 } else {
                     errorMsg = "暂无已绑定设备的老人"
@@ -305,5 +306,15 @@ private fun LocationStat(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(text = value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
         Text(text = label, fontSize = 11.sp, color = TextSecondary)
+    }
+}
+
+private fun parseTrajectoryData(rawBody: String): List<LocationData>? {
+    return try {
+        val type = object : com.google.gson.reflect.TypeToken<ApiResponse<List<LocationData>>>() {}.type
+        val apiResp: ApiResponse<List<LocationData>> = com.google.gson.Gson().fromJson(rawBody, type)
+        apiResp.data
+    } catch (_: Exception) {
+        null
     }
 }

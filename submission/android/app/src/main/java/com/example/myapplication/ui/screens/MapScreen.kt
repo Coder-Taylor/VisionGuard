@@ -57,6 +57,7 @@ import com.amap.api.maps.model.LatLngBounds
 import com.amap.api.maps.model.MarkerOptions
 import com.amap.api.maps.model.MyLocationStyle
 import com.amap.api.maps.model.PolylineOptions
+import com.example.myapplication.api.ApiResponse
 import com.example.myapplication.api.ElderData
 import com.example.myapplication.api.LocationData
 import com.example.myapplication.api.RetrofitClient
@@ -165,17 +166,21 @@ internal fun MapScreen(
                     val selElder = elders.getOrNull(selectedElderIdx)
                     if (selElder != null && !selElder.deviceId.isNullOrBlank()) {
                         try {
-                            val end = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
-                                .format(java.util.Date())
-                            val start = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
-                                .format(java.util.Date(System.currentTimeMillis() - 86400000))
-                            val trajResp = withContext(Dispatchers.IO) {
-                                RetrofitClient.locationApi.getTrajectory(
+                            val fmt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
+                            val end = fmt.format(java.util.Date()) + "+08:00"
+                            val start = fmt.format(java.util.Date(System.currentTimeMillis() - 86400000)) + "+08:00"
+                            android.util.Log.e("MapScreen", "URL params: elderId=${selElder.elderId}, start=$start, end=$end")
+                            val rawBody = withContext(Dispatchers.IO) {
+                                val resp = RetrofitClient.locationApi.getTrajectory(
                                     elderId = selElder.elderId, start = start, end = end,
                                 )
+                                if (resp.isSuccessful) resp.body()?.string() else null
                             }
-                            if (trajResp.isSuccessful) {
-                                val points = trajResp.body()?.data?.list?.mapNotNull { pt ->
+                            android.util.Log.e("MapScreen", "rawBody=${if (rawBody != null) rawBody.take(200) else "NULL"}")
+                            if (rawBody != null) {
+                                val trajData = parseTrajectoryData(rawBody)
+                                android.util.Log.e("MapScreen", "trajData=${trajData?.size ?: "NULL"}")
+                                val points = trajData?.mapNotNull { pt ->
                                     val lat = pt.lat ?: return@mapNotNull null
                                     val lng = pt.lng ?: return@mapNotNull null
                                     LatLng(lat, lng)
@@ -410,4 +415,15 @@ private fun mapAlertType(type: String): String = when (type) {
     "device_offline" -> "设备离线"
     "geofence" -> "电子围栏"
     else -> type
+}
+
+/** 用 Gson TypeToken 显式指定泛型，绕过 Retrofit GsonConverter 对嵌套参数化类型的解析缺陷 */
+private fun parseTrajectoryData(rawBody: String): List<LocationData>? {
+    return try {
+        val type = object : com.google.gson.reflect.TypeToken<ApiResponse<List<LocationData>>>() {}.type
+        val apiResp: ApiResponse<List<LocationData>> = com.google.gson.Gson().fromJson(rawBody, type)
+        apiResp.data
+    } catch (_: Exception) {
+        null
+    }
 }

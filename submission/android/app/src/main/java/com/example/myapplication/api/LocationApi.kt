@@ -24,7 +24,7 @@ interface LocationApi {
         @Query("end") end: String,
         @Query("page") page: Int = 1,
         @Query("pageSize") pageSize: Int = 500,
-    ): Response<ApiResponse<PaginatedData<LocationData>>>
+    ): Response<okhttp3.ResponseBody>
 
     @GET("api/v1/location/alert-markers")
     suspend fun getAlertMarkers(
