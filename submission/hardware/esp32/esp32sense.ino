@@ -7,7 +7,7 @@
 #include "SPI.h"
 #include <Preferences.h>
 
-#define DEVICE_SERIAL_NO "SN_TEST_008"
+#define DEVICE_SERIAL_NO "SN_TEST_009"
 #define DEVICE_MODEL     "ESP32_K210"
 #define HW_VERSION       "1.0"
 #define FW_VERSION       "1.0.0"
