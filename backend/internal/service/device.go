@@ -40,10 +40,21 @@ type DeviceActivateResp struct {
 }
 
 func (s *DeviceService) Activate(req DeviceActivateReq) (*DeviceActivateResp, error) {
-	// 检查 serialNo 是否已注册
+	// 检查 serialNo 是否已注册：已存在则返回已有凭证（设备恢复场景）
 	var existing model.Device
 	if s.db.Where("serial_no = ?", req.SerialNo).First(&existing).Error == nil {
-		return nil, fmt.Errorf("device already registered")
+		// 更新设备信息（MAC/固件版本可能变化）
+		s.db.Model(&existing).Updates(map[string]any{
+			"mac":        req.MAC,
+			"hw_version": req.HWVersion,
+			"fw_version": req.FWVersion,
+			"model":      req.Model,
+		})
+		return &DeviceActivateResp{
+			DeviceID:     existing.DeviceID,
+			DeviceSecret: existing.DeviceCode,
+			ExpiresAt:    time.Now().AddDate(1, 0, 0).Format(time.RFC3339),
+		}, nil
 	}
 
 	deviceID := "DEV_" + generateRandomString(8)
