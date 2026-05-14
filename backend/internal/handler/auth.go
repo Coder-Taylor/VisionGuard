@@ -124,10 +124,7 @@ func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": "oldPassword and newPassword required"})
 	}
 
-	userID, ok := c.Locals("userId").(uint)
-	if !ok || userID == 0 {
-		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "用户认证失败"})
-	}
+	userID := c.Locals("userId").(uint)
 	if err := h.svc.ChangePassword(userID, req.OldPassword, req.NewPassword); err != nil {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": err.Error()})
 	}
@@ -136,10 +133,7 @@ func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
 
 // GET /api/v1/user/profile
 func (h *AuthHandler) GetProfile(c *fiber.Ctx) error {
-	userID, ok := c.Locals("userId").(uint)
-	if !ok || userID == 0 {
-		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "用户认证失败"})
-	}
+	userID := c.Locals("userId").(uint)
 	resp, err := h.svc.GetProfile(userID)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": err.Error()})
@@ -157,10 +151,7 @@ func (h *AuthHandler) UpdateProfile(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": "invalid request"})
 	}
 
-	userID, ok := c.Locals("userId").(uint)
-	if !ok || userID == 0 {
-		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "用户认证失败"})
-	}
+	userID := c.Locals("userId").(uint)
 	if err := h.svc.UpdateProfile(userID, req.DisplayName, req.Phone); err != nil {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": err.Error()})
 	}

@@ -2,7 +2,7 @@ package service
 
 import (
 	"fmt"
-	"sync"
+
 	"time"
 
 	"github.com/jry21223/vision-hub/backend/internal/model"
@@ -10,29 +10,16 @@ import (
 )
 
 type OcrService struct {
-	db           *gorm.DB
-	doubao       *DoubaoService
-	mu           sync.Mutex
-	runningTasks map[string]bool
+	db     *gorm.DB
+	doubao *DoubaoService
 }
 
 func NewOcrService(db *gorm.DB, doubao *DoubaoService) *OcrService {
-	return &OcrService{db: db, doubao: doubao, runningTasks: make(map[string]bool)}
+	return &OcrService{db: db, doubao: doubao}
 }
 
 // runDoubaoRecognition 异步调用豆包 API 识别药品
 func (s *OcrService) runDoubaoRecognition(record model.OcrRecord) {
-	defer func() {
-		s.mu.Lock()
-		delete(s.runningTasks, record.ImageID)
-		s.mu.Unlock()
-		if r := recover(); r != nil {
-			fmt.Printf("[OCR] PANIC 豆包识别恢复 taskId=%s panic=%v\n", record.TaskID, r)
-			s.db.Model(&record).Updates(map[string]interface{}{
-				"status": "failed", "stage": "panic", "fail_reason": "internal_panic",
-			})
-		}
-	}()
 	fmt.Printf("[OCR] 开始识别 taskId=%s imageURL=%s\n", record.TaskID, record.FileURL)
 	result, err := s.doubao.RecognizeMedicine(record.FileURL)
 	updates := map[string]interface{}{}
@@ -109,9 +96,6 @@ func (s *OcrService) UploadImage(req ImageUploadReq) (*ImageUploadResp, error) {
 	}
 
 	// 异步调用豆包 API 识别药品
-	s.mu.Lock()
-	s.runningTasks[imageID] = true
-	s.mu.Unlock()
 	go s.runDoubaoRecognition(record)
 
 	return &ImageUploadResp{
@@ -125,36 +109,9 @@ func (s *OcrService) UploadImage(req ImageUploadReq) (*ImageUploadResp, error) {
 // ======================== OCR 任务处理（豆包识别）九.2 ========================
 
 func (s *OcrService) CreateOcrTask(imageID, language string) (map[string]interface{}, error) {
-	s.mu.Lock()
-	if s.runningTasks[imageID] {
-		s.mu.Unlock()
-		var existing model.OcrRecord
-		if err := s.db.Where("image_id = ?", imageID).First(&existing).Error; err != nil {
-			return nil, fmt.Errorf("image not found, upload first")
-		}
-		return map[string]interface{}{
-			"taskId":        existing.TaskID,
-			"status":        existing.Status,
-			"estimatedTime": 10,
-		}, nil
-	}
-	s.runningTasks[imageID] = true
-	s.mu.Unlock()
-
-	// 标记记录为"已提交识别"，防止 UploadImage 和 CreateOcrTask 重复调用
 	var existing model.OcrRecord
 	if err := s.db.Where("image_id = ?", imageID).First(&existing).Error; err != nil {
-		s.mu.Lock()
-		delete(s.runningTasks, imageID)
-		s.mu.Unlock()
 		return nil, fmt.Errorf("image not found, upload first")
-	}
-	if existing.Stage == "doubao_recognizing" || existing.Status == "processing" {
-		return map[string]interface{}{
-			"taskId":        existing.TaskID,
-			"status":        existing.Status,
-			"estimatedTime": 10,
-		}, nil
 	}
 
 	taskID := "OCR_" + generateRandomString(8)
@@ -166,7 +123,7 @@ func (s *OcrService) CreateOcrTask(imageID, language string) (map[string]interfa
 		"progress": 10,
 	})
 
-	// 异步调用豆包 API 识别药品（防重复：已识别中则跳过）
+	// 异步调用豆包 API 识别药品
 	go s.runDoubaoRecognition(existing)
 
 	return map[string]interface{}{
@@ -236,11 +193,6 @@ func (s *OcrService) GenerateSuggestion(imageID, elderID string) (map[string]int
 
 	// stub: mock LLM suggestion
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				fmt.Printf("[OCR] PANIC suggestion goroutine imageId=%s panic=%v\n", imageID, r)
-			}
-		}()
 		time.Sleep(5 * time.Second)
 		suggestions := `{"rationality":"该药品用于预防心血管事件，用法用量合理","interaction":"注意：若老人同时服用布洛芬，可能增加出血风险","allergyRisk":"老人无阿司匹林过敏史，风险较低","specialNote":"老人有高血压病史，建议定期监测血压和凝血功能","dietAdvice":"避免饮酒，饮酒可能增加胃出血风险"}`
 		s.db.Model(&model.OcrRecord{}).Where("image_id = ?", imageID).Updates(map[string]interface{}{

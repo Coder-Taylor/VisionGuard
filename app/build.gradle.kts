@@ -22,8 +22,8 @@ android {
         applicationId = "com.example.myapplication"
         minSdk = 31
         targetSdk = 35
-        versionCode = 11
-        versionName = "1.5.4"
+        versionCode = 10
+        versionName = "1.5.3"
 
         val amapApiKey = localProperties.getProperty("AMAP_API_KEY") ?: "EMPTY_KEY_PLEASE_SET_IN_LOCAL_PROPERTIES"
         manifestPlaceholders["AMAP_API_KEY"] = amapApiKey
@@ -36,9 +36,9 @@ android {
         create("release") {
             storeFile = localProperties.getProperty("SIGNING_STORE_FILE")?.let { file(it) }
                 ?: file("visionhub-release2.keystore")
-            storePassword = localProperties.getProperty("SIGNING_STORE_PASSWORD") ?: System.getenv("SIGNING_STORE_PASSWORD") ?: error("SIGNING_STORE_PASSWORD not set")
-            keyAlias = localProperties.getProperty("SIGNING_KEY_ALIAS") ?: System.getenv("SIGNING_KEY_ALIAS") ?: "visionhub"
-            keyPassword = localProperties.getProperty("SIGNING_KEY_PASSWORD") ?: System.getenv("SIGNING_KEY_PASSWORD") ?: error("SIGNING_KEY_PASSWORD not set")
+            storePassword = localProperties.getProperty("SIGNING_STORE_PASSWORD") ?: "visionhub2024"
+            keyAlias = localProperties.getProperty("SIGNING_KEY_ALIAS") ?: "visionhub"
+            keyPassword = localProperties.getProperty("SIGNING_KEY_PASSWORD") ?: "visionhub2024"
         }
     }
 

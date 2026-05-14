@@ -54,8 +54,7 @@ def take_vga_photo():
     return jpg
 
 while True:
-    try:
-        if uart2.any():
+    if uart2.any():
         data = uart2.read()
         if data and len(data) > 0:
             uart_buffer += data
@@ -88,10 +87,5 @@ while True:
             if direction != last_direction and not need_send:
                 uart2.write(direction + "\r\n")
                 last_direction = direction
-    except Exception as e:
-        uart_buffer = b""
-        need_send = False
-        b64_data = ""
-        gc.collect()
     gc.collect()
     time.sleep_ms(10)

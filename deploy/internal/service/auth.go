@@ -295,10 +295,7 @@ func (s *AuthService) RefreshToken(refreshToken string) (*LoginResponse, error) 
 		return nil, fmt.Errorf("user not found")
 	}
 
-	accessToken, err := s.issueUserJWT(user.ID, user.Username)
-	if err != nil {
-		return nil, fmt.Errorf("jwt issue error: %w", err)
-	}
+	accessToken, _ := s.issueUserJWT(user.ID, user.Username)
 	newRefresh := generateRandomString(32)
 	newHash := hashToken(newRefresh)
 

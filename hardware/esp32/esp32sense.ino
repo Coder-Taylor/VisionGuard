@@ -20,7 +20,6 @@
 #define BTN_A 1
 #define SD_CS 21
 
-// !!! 演示固件：部署前请修改以下配置 !!!
 const char* BASE_URL = "http://47.94.146.53/vg";
 const char* ssid     = "wuiPhone 16";
 const char* password = "12345ssDLH";
@@ -275,7 +274,7 @@ String httpPostMultipartImage(const uint8_t* jpegData, int jpegLen, String devic
 }
 
 String pollOcrResult(String deviceId) {
-  return httpGet("/api/v1/ocr/result/latest", true);  // deviceId 由 JWT 携带，无需 query
+  return httpGet("/api/v1/ocr/result/latest?deviceId=" + deviceId, true);
 }
 
 // OCR触发（按键调用）

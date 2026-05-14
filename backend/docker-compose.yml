@@ -3,7 +3,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: visionhub
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-visionhub}
+      POSTGRES_PASSWORD: visionhub
       POSTGRES_DB: visionhub
     ports:
       - "5432:5432"

@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"sync"
 	"time"
 
-	"github.com/jry21223/vision-hub/backend/internal/infra"
 	"github.com/jry21223/vision-hub/backend/internal/model"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
@@ -243,7 +241,7 @@ func (s *DeviceService) ScanOfflineDevices() {
 	var devices []model.Device
 	s.db.Where("status = ?", "online").Find(&devices)
 
-	threshold := time.Now().Add(-90 * time.Second)
+	threshold := time.Now().Add(-30 * time.Second)
 	for _, dev := range devices {
 		if dev.LastHeartbeatAt == nil || dev.LastHeartbeatAt.Before(threshold) {
 			s.markOffline(dev)
@@ -270,8 +268,8 @@ func (s *DeviceService) markOffline(dev model.Device) {
 	if elderID != "" {
 		var guardians []model.Guardianship
 		s.db.Where("elder_id = ?", elderID).Find(&guardians)
-		infra.ParallelForEach(context.TODO(), guardians, func(_ context.Context, g model.Guardianship) error {
-			return s.db.Create(&model.Notification{
+		for _, g := range guardians {
+			s.db.Create(&model.Notification{
 				MessageID: "MSG_" + generateRandomString(12),
 				UserID:    g.UserID,
 				ElderID:   elderID,
@@ -280,8 +278,8 @@ func (s *DeviceService) markOffline(dev model.Device) {
 				Body:      "设备 " + dev.DeviceID + " 已离线",
 				Channel:   "app",
 				Priority:  "P1",
-			}).Error
-		})
+			})
+		}
 	}
 }
 
@@ -295,21 +293,13 @@ type OnlineStatusResp struct {
 }
 
 func (s *DeviceService) GetOnlineStatus(deviceID string) (*OnlineStatusResp, error) {
-	var (
-		status string
-		dev    model.Device
-	)
-	conc := infra.NewConcurrent(2)
-	conc.Go(func() error {
-		if val, err := s.redis.Get(context.Background(), "device:status:"+deviceID).Result(); err == nil {
-			status = val
-		}
-		return nil
-	})
-	conc.Go(func() error {
-		return s.db.Where("device_id = ?", deviceID).First(&dev).Error
-	})
-	if err := conc.WaitFirst(); err != nil {
+	status := "unknown"
+	if val, err := s.redis.Get(context.Background(), "device:status:"+deviceID).Result(); err == nil {
+		status = val
+	}
+
+	var dev model.Device
+	if err := s.db.Where("device_id = ?", deviceID).First(&dev).Error; err != nil {
 		return nil, fmt.Errorf("device not found")
 	}
 
@@ -343,25 +333,14 @@ type LastOnlineResp struct {
 }
 
 func (s *DeviceService) GetLastOnline(deviceID string) (*LastOnlineResp, error) {
-	var (
-		dev    model.Device
-		status string
-	)
-	conc := infra.NewConcurrent(2)
-	conc.Go(func() error {
-		return s.db.Where("device_id = ?", deviceID).First(&dev).Error
-	})
-	conc.Go(func() error {
-		if val, err := s.redis.Get(context.Background(), "device:status:"+deviceID).Result(); err == nil {
-			status = val
-		}
-		return nil
-	})
-	if err := conc.WaitFirst(); err != nil {
+	var dev model.Device
+	if err := s.db.Where("device_id = ?", deviceID).First(&dev).Error; err != nil {
 		return nil, fmt.Errorf("device not found")
 	}
-	if status == "" {
-		status = "offline"
+
+	status := "offline"
+	if val, err := s.redis.Get(context.Background(), "device:status:"+deviceID).Result(); err == nil {
+		status = val
 	}
 
 	resp := &LastOnlineResp{
@@ -403,27 +382,14 @@ type DeviceRunningStatusResp struct {
 }
 
 func (s *DeviceService) GetRunningStatus(deviceID, elderID string) (*DeviceRunningStatusResp, error) {
-	var (
-		dev     model.Device
-		status  string
-		binding model.Binding
-	)
-	conc := infra.NewConcurrent(3)
-	conc.Go(func() error {
-		return s.db.Where("device_id = ?", deviceID).First(&dev).Error
-	})
-	conc.Go(func() error {
-		if val, err := s.redis.Get(context.Background(), "device:status:"+deviceID).Result(); err == nil {
-			status = val
-		}
-		return nil
-	})
-	conc.Go(func() error {
-		s.db.Where("device_id = ? AND status = ?", deviceID, "bound").First(&binding)
-		return nil
-	})
-	if err := conc.WaitFirst(); err != nil {
+	var dev model.Device
+	if err := s.db.Where("device_id = ?", deviceID).First(&dev).Error; err != nil {
 		return nil, fmt.Errorf("device not found")
+	}
+
+	status := "offline"
+	if val, err := s.redis.Get(context.Background(), "device:status:"+deviceID).Result(); err == nil {
+		status = val
 	}
 
 	resp := &DeviceRunningStatusResp{
@@ -449,7 +415,9 @@ func (s *DeviceService) GetRunningStatus(deviceID, elderID string) (*DeviceRunni
 		}{Lat: dev.Latitude, Lng: dev.Longitude}
 	}
 
-	if binding.BoundAt != nil {
+	// 查询绑定时间
+	var binding model.Binding
+	if s.db.Where("device_id = ? AND status = ?", deviceID, "bound").First(&binding).Error == nil && binding.BoundAt != nil {
 		resp.BindTime = binding.BoundAt.Format(time.RFC3339)
 	}
 
@@ -459,9 +427,8 @@ func (s *DeviceService) GetRunningStatus(deviceID, elderID string) (*DeviceRunni
 // ======================== 批量设备状态查询 (四.7) ========================
 
 func (s *DeviceService) BatchStatus(deviceIDs []string) []map[string]interface{} {
-	var mu sync.Mutex
 	var result []map[string]interface{}
-	_ = infra.ParallelForEach(context.TODO(), deviceIDs, func(_ context.Context, id string) error {
+	for _, id := range deviceIDs {
 		status := "offline"
 		if val, err := s.redis.Get(context.Background(), "device:status:"+id).Result(); err == nil {
 			status = val
@@ -475,16 +442,13 @@ func (s *DeviceService) BatchStatus(deviceIDs []string) []map[string]interface{}
 				hb = dev.LastHeartbeatAt.Format(time.RFC3339)
 			}
 		}
-		mu.Lock()
 		result = append(result, map[string]interface{}{
 			"deviceId":      id,
 			"status":        status,
 			"battery":       battery,
 			"lastHeartbeat": hb,
 		})
-		mu.Unlock()
-		return nil
-	})
+	}
 	return result
 }
 

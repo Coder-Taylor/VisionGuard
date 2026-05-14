@@ -23,10 +23,7 @@ func (h *MedicationHandler) CreatePlan(c *fiber.Ctx) error {
 	if err := c.BodyParser(&plan); err != nil {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": "invalid request"})
 	}
-	uid, ok := c.Locals("userId").(uint)
-	if !ok || uid == 0 {
-		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "用户认证失败"})
-	}
+	uid := c.Locals("userId").(uint)
 	plan.CreatedBy = uid
 
 	if err := h.svc.CreatePlan(&plan); err != nil {
@@ -55,10 +52,7 @@ func (h *MedicationHandler) ListPlans(c *fiber.Ctx) error {
 // PUT /api/v1/medication/plan/:planId — 更新用药计划
 func (h *MedicationHandler) UpdatePlan(c *fiber.Ctx) error {
 	planID := c.Params("planId")
-	uid, ok := c.Locals("userId").(uint)
-	if !ok || uid == 0 {
-		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "用户认证失败"})
-	}
+	uid := c.Locals("userId").(uint)
 	var updates map[string]interface{}
 	if err := c.BodyParser(&updates); err != nil {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": "invalid request"})
@@ -72,10 +66,7 @@ func (h *MedicationHandler) UpdatePlan(c *fiber.Ctx) error {
 // DELETE /api/v1/medication/plan/:planId — 删除用药计划
 func (h *MedicationHandler) DeletePlan(c *fiber.Ctx) error {
 	planID := c.Params("planId")
-	uid, ok := c.Locals("userId").(uint)
-	if !ok || uid == 0 {
-		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "用户认证失败"})
-	}
+	uid := c.Locals("userId").(uint)
 	if err := h.svc.DeletePlan(planID, uid); err != nil {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": err.Error()})
 	}

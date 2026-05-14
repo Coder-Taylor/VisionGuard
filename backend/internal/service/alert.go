@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jry21223/vision-hub/backend/internal/infra"
 	"github.com/jry21223/vision-hub/backend/internal/model"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
-var ctx = context.TODO()
+var ctx = context.Background()
 
 type AlertService struct {
 	db    *gorm.DB
@@ -221,13 +220,14 @@ func (s *AlertService) createAlertNotifications(alert model.Alert) {
 	var guardians []model.Guardianship
 	s.db.Where("elder_id = ?", alert.ElderID).Find(&guardians)
 
-	// 并行创建通知（IO 密集，互不依赖）
-	infra.ParallelForEach(context.TODO(), guardians, func(_ context.Context, g model.Guardianship) error {
+	for _, g := range guardians {
 		isPrimary := g.Role == "primary"
+		// info 级别仅推送主监护人
 		if alert.AlertLevel == "info" && !isPrimary {
-			return nil
+			continue
 		}
-		return s.db.Create(&model.Notification{
+
+		s.db.Create(&model.Notification{
 			MessageID: "MSG_" + generateRandomString(12),
 			UserID:    g.UserID,
 			ElderID:   alert.ElderID,
@@ -237,8 +237,8 @@ func (s *AlertService) createAlertNotifications(alert model.Alert) {
 			Channel:   "app",
 			Priority:  alertLevelPriority(alert.AlertLevel),
 			DeepLink:  "app://alert/" + alert.AlertID,
-		}).Error
-	})
+		})
+	}
 }
 
 // ======================== 告警状态管理 (七.5) ========================
@@ -460,45 +460,35 @@ func (s *AlertService) GetStatistics(userID uint, elderID, period, date string) 
 	levelStats := make(map[string]int64)
 	statusStats := make(map[string]int64)
 
-	// 三种统计并发查询（IO 密集，互不依赖）
-	conc := infra.NewConcurrent(3)
-	conc.Go(func() error {
-		rows, err := query.Select("alert_type, count(*)").Group("alert_type").Rows()
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-		for rows.Next() {
+	// 按类型统计
+	typeRows, _ := query.Select("alert_type, count(*)").Group("alert_type").Rows()
+	if typeRows != nil {
+		for typeRows.Next() {
 			var t string; var c int64
-			rows.Scan(&t, &c); typeStats[t] = c
+			typeRows.Scan(&t, &c); typeStats[t] = c
 		}
-		return nil
-	})
-	conc.Go(func() error {
-		rows, err := query.Select("alert_level, count(*)").Group("alert_level").Rows()
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-		for rows.Next() {
+		typeRows.Close()
+	}
+
+	// 按等级统计
+	levelRows, _ := query.Select("alert_level, count(*)").Group("alert_level").Rows()
+	if levelRows != nil {
+		for levelRows.Next() {
 			var l string; var c int64
-			rows.Scan(&l, &c); levelStats[l] = c
+			levelRows.Scan(&l, &c); levelStats[l] = c
 		}
-		return nil
-	})
-	conc.Go(func() error {
-		rows, err := query.Select("status, count(*)").Group("status").Rows()
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-		for rows.Next() {
+		levelRows.Close()
+	}
+
+	// 按状态统计
+	statusRows, _ := query.Select("status, count(*)").Group("status").Rows()
+	if statusRows != nil {
+		for statusRows.Next() {
 			var s string; var c int64
-			rows.Scan(&s, &c); statusStats[s] = c
+			statusRows.Scan(&s, &c); statusStats[s] = c
 		}
-		return nil
-	})
-	conc.Wait() // 等待所有统计完成
+		statusRows.Close()
+	}
 
 	return map[string]interface{}{
 		"period":      fmt.Sprintf("%s ~ %s", start.Format("2006-01-02"), end.Format("2006-01-02")),

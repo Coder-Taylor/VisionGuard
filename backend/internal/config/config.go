@@ -43,12 +43,12 @@ func Load() *Config {
 	}
 
 	return &Config{
-		ServerPort: getEnv("SERVER_PORT", "3000"),
+		ServerPort: getEnv("SERVER_PORT", "8888"),
 
 		DBHost: getEnv("DB_HOST", "localhost"),
 		DBPort: getEnv("DB_PORT", "5432"),
 		DBUser: getEnv("DB_USER", "visionhub"),
-		DBPass: getEnv("DB_PASSWORD", "CHANGE_ME_DB_PASSWORD"),
+		DBPass: getEnv("DB_PASSWORD", "visionhub"),
 		DBName: getEnv("DB_NAME", "visionhub"),
 
 		RedisHost:     getEnv("REDIS_HOST", "localhost"),

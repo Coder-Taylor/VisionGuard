@@ -27,10 +27,10 @@ func NewAuthService(db *gorm.DB, redis *redis.Client, cfg *config.Config) *AuthS
 	return &AuthService{db: db, redis: redis, cfg: cfg}
 }
 
-// ======================== XOR 加密 ========================
+// ======================== XOR 0x4B 加密 ========================
 
-func (s *AuthService) xorEncrypt(input string) string {
-	key := s.cfg.DeviceXORKey
+func xorEncrypt(input string) string {
+	key := byte(0x4B)
 	result := make([]byte, len(input))
 	for i := 0; i < len(input); i++ {
 		result[i] = input[i] ^ key
@@ -58,7 +58,7 @@ func (s *AuthService) RequestChallenge(deviceID string) (*ChallengeResponse, err
 
 	// XOR(device_code + nonce + timestamp, 0x4B)
 	plaintext := dev.DeviceCode + nonce + strconv.FormatInt(ts, 10)
-	encrypted := s.xorEncrypt(plaintext)
+	encrypted := xorEncrypt(plaintext)
 
 	// 存入 Redis，TTL 5 分钟
 	key := "challenge:" + challengeID
@@ -295,10 +295,7 @@ func (s *AuthService) RefreshToken(refreshToken string) (*LoginResponse, error) 
 		return nil, fmt.Errorf("user not found")
 	}
 
-	accessToken, err := s.issueUserJWT(user.ID, user.Username)
-	if err != nil {
-		return nil, fmt.Errorf("jwt issue error: %w", err)
-	}
+	accessToken, _ := s.issueUserJWT(user.ID, user.Username)
 	newRefresh := generateRandomString(32)
 	newHash := hashToken(newRefresh)
 

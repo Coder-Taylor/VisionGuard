@@ -64,11 +64,10 @@ func (h *OcrHandler) UploadImage(c *fiber.Ctx) error {
 			return c.Status(413).JSON(fiber.Map{"code": 413, "message": "image too large"})
 		}
 
-		// 两条路由共享此 handler：
-		//   POST /api/v1/device/ocr/image (deviceAuth) → deviceId 从 JWT 强制取
-			//   POST /api/v1/ocr/image         (userAuth)  → deviceId 从 form 取
-			deviceID, hasDeviceAuth := c.Locals("deviceId").(string)
-			if !hasDeviceAuth {
+		// 设备路由优先使用 JWT 子身份，避免设备 A 借自己的 token 上传到设备 B 的目录。
+		// Android 路由没有 deviceAuth，仍允许通过 form 提供 deviceId（已与 elderId 一并归属校验在 service 层）。
+		deviceID, _ := c.Locals("deviceId").(string)
+		if deviceID == "" {
 			deviceID = c.FormValue("deviceId")
 		}
 		if !safeDeviceIDRe.MatchString(deviceID) {
@@ -221,8 +220,8 @@ func (h *OcrHandler) RecordFeedback(c *fiber.Ctx) error {
 // GET /api/v1/ocr/result/latest — 硬件轮询最新识别结果（返回纯文本播报）
 func (h *OcrHandler) GetLatestResult(c *fiber.Ctx) error {
 	// 设备路由必须从 JWT 拿 deviceID，不接受 query 覆盖
-		deviceID, ok := c.Locals("deviceId").(string)
-		if !ok || deviceID == "" {
+	deviceID, _ := c.Locals("deviceId").(string)
+	if deviceID == "" {
 		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "device token required"})
 	}
 	record, err := h.svc.GetLatestResult(deviceID)

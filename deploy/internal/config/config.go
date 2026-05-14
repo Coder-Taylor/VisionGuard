@@ -3,7 +3,6 @@ package config
 import (
 	"log"
 	"os"
-	"strconv"
 )
 
 type Config struct {
@@ -43,12 +42,12 @@ func Load() *Config {
 	}
 
 	return &Config{
-		ServerPort: getEnv("SERVER_PORT", "3000"),
+		ServerPort: getEnv("SERVER_PORT", "8888"),
 
 		DBHost: getEnv("DB_HOST", "localhost"),
 		DBPort: getEnv("DB_PORT", "5432"),
 		DBUser: getEnv("DB_USER", "visionhub"),
-		DBPass: getEnv("DB_PASSWORD", "CHANGE_ME_DB_PASSWORD"),
+		DBPass: getEnv("DB_PASSWORD", "visionhub"),
 		DBName: getEnv("DB_NAME", "visionhub"),
 
 		RedisHost:     getEnv("REDIS_HOST", "localhost"),
@@ -58,7 +57,7 @@ func Load() *Config {
 		JWTSecret: jwtSecret,
 
 		DeviceUniqueCode:      getEnv("DEVICE_UNIQUE_CODE", "DEVICE_2026_ESP32_K210"),
-		DeviceXORKey:          byte(getEnvInt("DEVICE_XOR_KEY", 0x4B)), // 默认 0x4B (75)
+		DeviceXORKey:          0x4B,
 		DeviceActivationToken: os.Getenv("DEVICE_ACTIVATION_TOKEN"),
 
 		OCRServiceURL: getEnv("OCR_SERVICE_URL", ""),
@@ -72,15 +71,6 @@ func Load() *Config {
 func getEnv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
-	}
-	return fallback
-}
-
-func getEnvInt(key string, fallback int) int {
-	if v := os.Getenv(key); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			return n
-		}
 	}
 	return fallback
 }

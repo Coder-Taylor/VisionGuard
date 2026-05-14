@@ -2,12 +2,10 @@ package main
 
 import (
 	"log"
-	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/joho/godotenv"
 	"github.com/jry21223/vision-hub/backend/internal/config"
 	"github.com/jry21223/vision-hub/backend/internal/handler"
@@ -59,7 +57,7 @@ func main() {
 	
 	authH := handler.NewAuthHandler(authSvc, deviceSvc)
 	deviceH := handler.NewDeviceHandler(deviceSvc, cfg.DeviceActivationToken)
-	elderH := handler.NewElderHandler(elderSvc, bindingSvc)
+	elderH := handler.NewElderHandler(elderSvc)
 	bindingH := handler.NewBindingHandler(bindingSvc)
 	alertH := handler.NewAlertHandler(alertSvc)
 	notificationH := handler.NewNotificationHandler(notificationSvc)
@@ -73,63 +71,32 @@ func main() {
 
 	app := fiber.New()
 
-	// 审计日志中间件 — 记录所有请求
-	app.Use(func(c *fiber.Ctx) error {
-		start := time.Now()
-		err := c.Next()
-		elapsed := time.Since(start)
-		log.Printf("[AUDIT] %s | %s | %s | %d | %v",
-			c.IP(), c.Method(), c.Path(), c.Response().StatusCode(), elapsed)
-		return err
-	})
-
 	// CORS — 允许网页版跨域访问
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: os.Getenv("CORS_ORIGINS"),  // 空字符串 = 仅同域
+		AllowOrigins: "*",
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization, X-Activation-Token",
 		AllowMethods: "GET, POST, PUT, DELETE, OPTIONS",
 	}))
 
-	// 速率限制 — 每 IP 每分钟最多 60 次请求
-	app.Use(limiter.New(limiter.Config{
-		Max:        60,
-		Expiration: 1 * time.Minute,
-		KeyGenerator: func(c *fiber.Ctx) string {
-			return c.IP()
-		},
-		LimitReached: func(c *fiber.Ctx) error {
-			return c.Status(429).JSON(fiber.Map{"code": 429, "message": "请求过于频繁"})
-		},
-	}))
-
-		// 删除 app.Static("/uploads", "./uploads") — 上传文件仅通过 API 路由提供，不暴露静态目录
+		// 静态文件 — OCR 上传的图片
+		app.Static("/uploads", "./uploads")
 
 		// ═══════════════════════════════════════════════════════════════
-		// 路由注册（共 81 条，序号 1-81，业务标注保留）
-	// 核对方法：Ctrl+F 搜 "// N." 从 1 数到 81
+		// 路由注册（共 74 条，序号 1-74，业务标注保留）
+	// 核对方法：Ctrl+F 搜 "// N." 从 1 数到 74
 	// ═══════════════════════════════════════════════════════════════
 
 	// ---- 健康检查 ----
 	app.Get("/api/v1/healthz", func(c *fiber.Ctx) error { // 1.
-		sqlDB, err := db.DB()
-		if err != nil {
-			return c.Status(503).JSON(fiber.Map{"status": "unhealthy", "db": err.Error()})
-		}
-		if err := sqlDB.Ping(); err != nil {
-			return c.Status(503).JSON(fiber.Map{"status": "unhealthy", "db": err.Error()})
-		}
-		if err := rdb.Ping(c.Context()).Err(); err != nil {
-			return c.Status(503).JSON(fiber.Map{"status": "unhealthy", "redis": err.Error()})
-		}
-		return c.JSON(fiber.Map{"status": "ok", "db": "connected", "redis": "connected"})
+		return c.JSON(fiber.Map{"status": "ok"})
 	})
 
 	// ---- 一、认证服务（9 路由：2.-10.）----
 	app.Post("/api/v1/device/challenge", authH.RequestChallenge)   // 2. 一.1.i
 	app.Post("/api/v1/device/verify", authH.VerifyChallenge)       // 3. 一.1.i
 	app.Post("/api/v1/device/register", authH.DeviceFirstRegister) // 4. 一.1.ii
-	app.Post("/api/v1/device/info", authH.RecordDeviceInfo)        // 5. 一.1.viii (pre-JWT, body deviceId only)
-	app.Post("/api/v1/device/log", authH.LogAuthEvent)             // 6. 一.1.ix (pre-JWT, body deviceId only)
+	app.Post("/api/v1/device/info", authH.RecordDeviceInfo)        // 5. 一.1.viii
+	app.Post("/api/v1/device/log", authH.LogAuthEvent)             // 6. 一.1.ix
 	app.Post("/api/v1/auth/register", authH.Register)              // 7. 一.2.i
 	app.Post("/api/v1/auth/login", authH.Login)                    // 8. 一.2.ii
 	app.Post("/api/v1/auth/refresh", authH.RefreshToken)           // 9. 一.2.iii
@@ -180,7 +147,7 @@ func main() {
 
 	// ---- 七、告警事件管理（8 路由：43.-50.）----
 	app.Get("/api/v1/alert/types", alertH.GetAlertTypes)                   // 43. 七.1
-	app.Post("/api/v1/alert", deviceAuth, alertH.CreateAlert)                           // 44. 七.2（需要 deviceAuth）
+	app.Post("/api/v1/alert", alertH.CreateAlert)                           // 44. 七.2（无需 JWT，硬件代码不上送）
 	app.Get("/api/v1/alerts", userAuth, alertH.ListAlerts)                 // 45. 七.6
 	app.Get("/api/v1/alert/statistics", userAuth, alertH.GetStatistics)    // 46. 七.9
 	app.Get("/api/v1/alert/level-config", userAuth, alertH.GetLevelConfig) // 47. 七.4
@@ -237,11 +204,6 @@ func main() {
 
 	// 定时任务：离线检测（每 10s 扫描，90s 无心跳标记 offline）
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Printf("[PANIC] offline scan goroutine panicked: %v", r)
-			}
-		}()
 		ticker := time.NewTicker(10 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {

@@ -15,10 +15,7 @@ func NewNotificationHandler(svc *service.NotificationService) *NotificationHandl
 
 // GET /api/v1/notifications  (十.5)
 func (h *NotificationHandler) ListMessages(c *fiber.Ctx) error {
-	userID, ok := c.Locals("userId").(uint)
-	if !ok || userID == 0 {
-		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "用户认证失败"})
-	}
+	userID := c.Locals("userId").(uint)
 	msgType := c.Query("type")
 	readStatus := c.Query("readStatus")
 	page := c.QueryInt("page", 1)
@@ -33,10 +30,7 @@ func (h *NotificationHandler) ListMessages(c *fiber.Ctx) error {
 
 // PUT /api/v1/notifications/read  (十.6)
 func (h *NotificationHandler) MarkRead(c *fiber.Ctx) error {
-	userID, ok := c.Locals("userId").(uint)
-	if !ok || userID == 0 {
-		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "用户认证失败"})
-	}
+	userID := c.Locals("userId").(uint)
 	var req struct {
 		MessageIDs []string `json:"messageIds"`
 	}
@@ -53,10 +47,7 @@ func (h *NotificationHandler) MarkRead(c *fiber.Ctx) error {
 
 // PUT /api/v1/notifications/read-all  (十.6)
 func (h *NotificationHandler) MarkAllRead(c *fiber.Ctx) error {
-	userID, ok := c.Locals("userId").(uint)
-	if !ok || userID == 0 {
-		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "用户认证失败"})
-	}
+	userID := c.Locals("userId").(uint)
 	if err := h.svc.MarkAllRead(userID); err != nil {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": err.Error()})
 	}
@@ -66,10 +57,7 @@ func (h *NotificationHandler) MarkAllRead(c *fiber.Ctx) error {
 // GET /api/v1/notification/push-rules  (十.1)
 func (h *NotificationHandler) GetPushRules(c *fiber.Ctx) error {
 	elderID := c.Query("elderId")
-	userID, ok := c.Locals("userId").(uint)
-	if !ok || userID == 0 {
-		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "用户认证失败"})
-	}
+	userID := c.Locals("userId").(uint)
 	rules := h.svc.GetPushRules(elderID, userID)
 	return c.JSON(fiber.Map{"code": 0, "data": rules})
 }
@@ -104,10 +92,7 @@ func (h *NotificationHandler) GetPushStatus(c *fiber.Ctx) error {
 
 // GET /api/v1/notification/priority-config  (十.8)
 func (h *NotificationHandler) GetPriorityConfig(c *fiber.Ctx) error {
-	userID, ok := c.Locals("userId").(uint)
-	if !ok || userID == 0 {
-		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "用户认证失败"})
-	}
+	userID := c.Locals("userId").(uint)
 	config := h.svc.GetPriorityConfig(userID)
 	return c.JSON(fiber.Map{"code": 0, "data": config})
 }

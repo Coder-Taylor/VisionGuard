@@ -30,7 +30,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 | 第二位 | 次版本 | 新功能/新模块/新页面上线 | 修订号→0 |
 | 第三位 | 修订号 | Bug 修复、文案修正、小调整 | 无 |
 
-> **当前版本**：v1.5.4
+> **当前版本**：v1.5.3
 >
 > **同步铁律**：改版本号必须同时更新：
 > 1. `submission/android/app/build.gradle.kts` 和 `app/build.gradle.kts` 的 `versionCode`（+1）和 `versionName`
@@ -121,7 +121,7 @@ vision-hub/
 ├── deploy/              # 云端部署版（server-deploy.sh 自动同步）
 ├── submission/          # 评委提交版（四端源码+APK+Web+Docker）
 ├── hardware/            # 硬件固件（esp32/esp32sense.ino + k210/main.py）
-├── docs/                # 14 份文档
+├── docs/                # 12 份文档
 ├── server-deploy.sh     # 一键部署脚本
 └── CLAUDE.md
 ```
@@ -197,7 +197,7 @@ Kotlin + Jetpack Compose + Material 3, minSdk 35, 18 页面。
 
 ### ⚠️ 构建铁律（省 token）
 
-1. **gradlew 不存在**：项目 `.gitignore` 排除了 `gradlew*`，不能假设它在。直接用系统 Gradle 缓存构建。（注：根目录和 submission/android/ 下实际有 gradlew，但 CI/干净检出时可能不存在，建议直接用系统 Gradle）
+1. **gradlew 不存在**：项目 `.gitignore` 排除了 `gradlew*`，不能假设它在。直接用系统 Gradle 缓存构建。
 2. **Gradle 路径**：`C:/Users/HONOR/.gradle/wrapper/dists/gradle-9.1.0-bin/<hash>/gradle-9.1.0/bin/gradle`
 3. **不要生成 wrapper**：Gradle 9.x 已移除 `wrapper` task，白白浪费一轮构建时间。直接用 `gradle assembleRelease -p <dir>`。
 4. **先改代码再构建**：一次 build ~1 分钟，确保代码无编译错误再 build，避免两次。
@@ -248,7 +248,7 @@ adb reverse tcp:3000 tcp:3000    # 每次拔插 USB 需重做
 
 ---
 
-## 文档索引（docs/，共 14 份）
+## 文档索引（docs/，共 12 份）
 
 | 文件 | 给谁 | 内容 |
 |------|------|------|
@@ -263,6 +263,4 @@ adb reverse tcp:3000 tcp:3000    # 每次拔插 USB 需重做
 | `变更记录.md` | 全团队 | 版本变更 |
 | `数据流模拟.md` | 全团队 | 端到端数据流 |
 | `api.md` | 硬件（存档） | 旧版接口文档 |
-| `服务器架构.md` | 全团队 | 服务器目录架构与配置 |
-| `UI11.DOCX` | 设计师原始 | 原始 UI 设计文件（存档） |
 | `业务设计 (1).md` | 学长原始 | 原始设计文档（存档） |

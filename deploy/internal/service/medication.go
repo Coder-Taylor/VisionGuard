@@ -34,19 +34,7 @@ func (s *MedicationService) UpdatePlan(planID string, userID uint, updates map[s
 	if err := s.db.Where("plan_id = ? AND created_by = ?", planID, userID).First(&plan).Error; err != nil {
 		return err
 	}
-	// 字段白名单，防止用户覆盖敏感字段
-	allowed := map[string]bool{
-		"drug_name": true, "dosage": true, "frequency": true,
-		"schedule": true, "start_date": true, "end_date": true,
-		"notes": true, "status": true,
-	}
-	filtered := make(map[string]interface{})
-	for k, v := range updates {
-		if allowed[k] {
-			filtered[k] = v
-		}
-	}
-	return s.db.Model(&plan).Updates(filtered).Error
+	return s.db.Model(&plan).Updates(updates).Error
 }
 
 func (s *MedicationService) DeletePlan(planID string, userID uint) error {

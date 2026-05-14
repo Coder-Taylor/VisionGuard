@@ -32,7 +32,6 @@ HardwareSerial gpsSerial(1);
 #define GPS_RX 16
 #define GPS_TX 15
 
-// !!! 演示固件：部署前请修改以下配置 !!!
 const char* BASE_URL = "http://47.94.146.53/vg";
 const char* ssid     = "wuiPhone 16";
 const char* password = "12345ssDLH";

@@ -205,8 +205,7 @@ func (h *LocationHandler) SaveHealthData(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": err.Error()})
 	}
 
-	bound, _ := resp["bound"].(bool)
-	if !bound {
+	if !resp["bound"].(bool) {
 		return c.JSON(fiber.Map{"code": 0, "message": "data accepted but unbound", "data": resp})
 	}
 	return c.JSON(fiber.Map{"code": 0, "message": "data accepted", "data": resp})

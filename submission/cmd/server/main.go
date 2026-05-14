@@ -59,7 +59,7 @@ func main() {
 	
 	authH := handler.NewAuthHandler(authSvc, deviceSvc)
 	deviceH := handler.NewDeviceHandler(deviceSvc, cfg.DeviceActivationToken)
-	elderH := handler.NewElderHandler(elderSvc, bindingSvc)
+	elderH := handler.NewElderHandler(elderSvc)
 	bindingH := handler.NewBindingHandler(bindingSvc)
 	alertH := handler.NewAlertHandler(alertSvc)
 	notificationH := handler.NewNotificationHandler(notificationSvc)
@@ -102,7 +102,8 @@ func main() {
 		},
 	}))
 
-		// 删除 app.Static("/uploads", "./uploads") — 上传文件仅通过 API 路由提供，不暴露静态目录
+		// 静态文件 — OCR 上传的图片（Nginx /vg/uploads/ → 此处，文件名随机化防遍历）
+	app.Static("/uploads", "./uploads")
 
 		// ═══════════════════════════════════════════════════════════════
 		// 路由注册（共 74 条，序号 1-74，业务标注保留）
@@ -111,17 +112,7 @@ func main() {
 
 	// ---- 健康检查 ----
 	app.Get("/api/v1/healthz", func(c *fiber.Ctx) error { // 1.
-		sqlDB, err := db.DB()
-		if err != nil {
-			return c.Status(503).JSON(fiber.Map{"status": "unhealthy", "db": err.Error()})
-		}
-		if err := sqlDB.Ping(); err != nil {
-			return c.Status(503).JSON(fiber.Map{"status": "unhealthy", "db": err.Error()})
-		}
-		if err := rdb.Ping(c.Context()).Err(); err != nil {
-			return c.Status(503).JSON(fiber.Map{"status": "unhealthy", "redis": err.Error()})
-		}
-		return c.JSON(fiber.Map{"status": "ok", "db": "connected", "redis": "connected"})
+		return c.JSON(fiber.Map{"status": "ok"})
 	})
 
 	// ---- 一、认证服务（9 路由：2.-10.）----
@@ -237,11 +228,6 @@ func main() {
 
 	// 定时任务：离线检测（每 10s 扫描，90s 无心跳标记 offline）
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Printf("[PANIC] offline scan goroutine panicked: %v", r)
-			}
-		}()
 		ticker := time.NewTicker(10 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {

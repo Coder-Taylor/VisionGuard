@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jry21223/vision-hub/backend/internal/infra"
 	"github.com/jry21223/vision-hub/backend/internal/model"
 	"gorm.io/gorm"
 )
@@ -31,16 +30,10 @@ func (s *NotificationService) ListMessages(userID uint, msgType, readStatus stri
 	}
 
 	var total int64
-	var unreadCount int64
+	query.Count(&total)
 
-	conc := infra.NewConcurrent(2)
-	conc.Go(func() error {
-		return query.Count(&total).Error
-	})
-	conc.Go(func() error {
-		return s.db.Model(&model.Notification{}).Where("user_id = ? AND read = ?", userID, false).Count(&unreadCount).Error
-	})
-	conc.Wait()
+	var unreadCount int64
+	s.db.Model(&model.Notification{}).Where("user_id = ? AND read = ?", userID, false).Count(&unreadCount)
 
 	var msgs []model.Notification
 	query.Order("created_at desc").Offset((page - 1) * pageSize).Limit(pageSize).Find(&msgs)
