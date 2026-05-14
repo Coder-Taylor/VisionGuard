@@ -30,7 +30,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 | 第二位 | 次版本 | 新功能/新模块/新页面上线 | 修订号→0 |
 | 第三位 | 修订号 | Bug 修复、文案修正、小调整 | 无 |
 
-> **当前版本**：v1.5.0
+> **当前版本**：v1.5.3
 >
 > **同步铁律**：改版本号必须同时更新：
 > 1. `submission/android/app/build.gradle.kts` 和 `app/build.gradle.kts` 的 `versionCode`（+1）和 `versionName`

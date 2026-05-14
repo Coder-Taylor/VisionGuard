@@ -54,7 +54,7 @@ submission/
 │   │       ├── test/                # 单元测试
 │   │       └── androidTest/         # 仪器测试
 │   └── apk/
-│       └── VisionGuard-v1.5.2-cloud.apk     # ★ 预构建 APK（已签名，118MB）
+│       └── VisionGuard-v1.5.3-cloud.apk     # ★ 预构建 APK（已签名，118MB）
 │
 │   # === Web 管理后台（React + TypeScript） ===
 ├── web/
@@ -198,7 +198,7 @@ curl -X POST http://localhost:3000/api/v1/auth/login \
 ### 直接安装（预构建 APK）
 
 ```bash
-adb install android/apk/VisionGuard-v1.5.2-cloud.apk
+adb install android/apk/VisionGuard-v1.5.3-cloud.apk
 ```
 
 ### 从源码构建
@@ -349,7 +349,7 @@ docker network inspect visionguard_default
 
 ## 版本信息
 
-- **版本**：v1.5.2
+- **版本**：v1.5.3
 - **日期**：2026-05-11
 - **后端**：Go 1.23 + Fiber v2 + GORM + PostgreSQL 16 + Redis 7
 - **Android**：Kotlin + Jetpack Compose + Material 3 + 高德地图 SDK 10.0.600

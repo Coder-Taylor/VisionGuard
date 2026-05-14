@@ -28,11 +28,8 @@ func (h *AlertHandler) CreateAlert(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"code": 400, "message": "invalid request"})
 	}
 
-	deviceID, _ := c.Locals("deviceId").(string)
-	if deviceID == "" {
-		deviceID = req.DeviceID // fallback：无 JWT 时从请求体取
-	}
-	if deviceID == "" {
+	deviceID, ok := c.Locals("deviceId").(string)
+	if !ok || deviceID == "" {
 		return c.Status(401).JSON(fiber.Map{"code": 401, "message": "device token required"})
 	}
 	req.DeviceID = deviceID

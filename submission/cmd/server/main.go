@@ -2,10 +2,12 @@ package main
 
 import (
 	"log"
+	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/joho/godotenv"
 	"github.com/jry21223/vision-hub/backend/internal/config"
 	"github.com/jry21223/vision-hub/backend/internal/handler"
@@ -71,15 +73,36 @@ func main() {
 
 	app := fiber.New()
 
+	// 审计日志中间件 — 记录所有请求
+	app.Use(func(c *fiber.Ctx) error {
+		start := time.Now()
+		err := c.Next()
+		elapsed := time.Since(start)
+		log.Printf("[AUDIT] %s | %s | %s | %d | %v",
+			c.IP(), c.Method(), c.Path(), c.Response().StatusCode(), elapsed)
+		return err
+	})
+
 	// CORS — 允许网页版跨域访问
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
+		AllowOrigins: os.Getenv("CORS_ORIGINS"),  // 空字符串 = 仅同域
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization, X-Activation-Token",
 		AllowMethods: "GET, POST, PUT, DELETE, OPTIONS",
 	}))
 
-	// 静态文件 — OCR 上传的图片
-	app.Static("/uploads", "./uploads")
+	// 速率限制 — 每 IP 每分钟最多 60 次请求
+	app.Use(limiter.New(limiter.Config{
+		Max:        60,
+		Expiration: 1 * time.Minute,
+		KeyGenerator: func(c *fiber.Ctx) string {
+			return c.IP()
+		},
+		LimitReached: func(c *fiber.Ctx) error {
+			return c.Status(429).JSON(fiber.Map{"code": 429, "message": "请求过于频繁"})
+		},
+	}))
+
+		// 删除 app.Static("/uploads", "./uploads") — 上传文件仅通过 API 路由提供，不暴露静态目录
 
 		// ═══════════════════════════════════════════════════════════════
 		// 路由注册（共 74 条，序号 1-74，业务标注保留）
@@ -147,7 +170,7 @@ func main() {
 
 	// ---- 七、告警事件管理（8 路由：43.-50.）----
 	app.Get("/api/v1/alert/types", alertH.GetAlertTypes)                   // 43. 七.1
-	app.Post("/api/v1/alert", alertH.CreateAlert)                           // 44. 七.2（无需 JWT，硬件代码不上送）
+	app.Post("/api/v1/alert", deviceAuth, alertH.CreateAlert)                           // 44. 七.2（无需 JWT，硬件代码不上送）
 	app.Get("/api/v1/alerts", userAuth, alertH.ListAlerts)                 // 45. 七.6
 	app.Get("/api/v1/alert/statistics", userAuth, alertH.GetStatistics)    // 46. 七.9
 	app.Get("/api/v1/alert/level-config", userAuth, alertH.GetLevelConfig) // 47. 七.4

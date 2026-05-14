@@ -10,7 +10,7 @@
 
 | 你想做什么 | 去哪里 |
 |------------|--------|
-| 安装 APP 测试 | 下载 `apk/VisionGuard-v1.5.2-local.apk`（连本地）或 `submission/android/apk/VisionGuard-v1.5.2-cloud.apk`（连云服务器） |
+| 安装 APP 测试 | 下载 `apk/VisionGuard-v1.5.3-local.apk`（连本地）或 `submission/android/apk/VisionGuard-v1.5.3-cloud.apk`（连云服务器） |
 | 打开网页版 | `submission/web/` — `npm run dev` 启动，或访问部署后的 `/vg/app/` |
 | 看后端接口 | 读 `docs/业务流程与后端设计.md` |
 | 看 UI 设计规范 | 读 `docs/Android-UI设计文档.md` |
@@ -373,7 +373,7 @@ XOR 0x4B Challenge-Response → 设备 JWT (24h 有效)
 vision-hub/                          # ★ Gitee: gitee.com/taylorchengitee/vision-guard
 │
 ├── apk/                            # 📱 发布 APK（直接安装）
-│   └── VisionGuard-v1.5.2-local.apk # ★ 本地版 (127.0.0.1:3000)
+│   └── VisionGuard-v1.5.3-local.apk # ★ 本地版 (127.0.0.1:3000)
 │
 ├── app/                            # 🤖 Android 监护端（Kotlin + Compose, 18 页面）
 │   └── src/main/java/.../ui/screens/
@@ -395,7 +395,7 @@ vision-hub/                          # ★ Gitee: gitee.com/taylorchengitee/visi
 │   ├── internal/                   #    Go 后端源码（与 backend/ 同步）
 │   ├── Dockerfile + docker-compose.prod.yml + .env.example
 │   ├── android/
-│   │   └── apk/VisionGuard-v1.5.2-cloud.apk  # ★ 云版 (47.94.146.53/vg)
+│   │   └── apk/VisionGuard-v1.5.3-cloud.apk  # ★ 云版 (47.94.146.53/vg)
 │   ├── hardware/                   #    硬件固件副本
 │   └── web/                        #    Web 管理后台（React + TS + Vite + Tailwind）
 │
@@ -831,7 +831,7 @@ docker compose -f docker-compose.prod.yml up -d
 | 16 张数据库表 | ✅ | GORM AutoMigrate 自动创建 |
 | 设备 XOR 认证 | ✅ | Challenge-Response + JWT（设备 24h / 用户 1h） |
 | 代码审查 | ✅ | 4 轮审查，61 检查点通过 |
-| Android 开发 | ✅ | 18 页面 + 全局下拉刷新 + 核心流程贯通 + 真机验证通过，v1.5.2 APK 已签名 |
+| Android 开发 | ✅ | 18 页面 + 全局下拉刷新 + 核心流程贯通 + 真机验证通过，v1.5.3 APK 已签名 |
 | Web 网页版 | 🔄 | 17 页路由全部打通，4 核心页面完成，剩余子页面待完善 |
 | 硬件对接文档 | ✅ | 含本地测试指南 + curl 脚本 + 故障排查 |
 | Android 对接文档 | ✅ | 77 路由 + 业务流 + DB + 安全 + 部署 |
