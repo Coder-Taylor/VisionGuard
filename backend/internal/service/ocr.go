@@ -61,10 +61,9 @@ type ImageUploadReq struct {
 }
 
 type ImageUploadResp struct {
-	TaskID      string `json:"taskId"`
 	ImageID     string `json:"imageId"`
 	FileURL     string `json:"fileUrl"`
-	ThumbnailURL string `json:"thumbnailUrl,omitempty"`
+	ThumbnailURL string `json:"thumbnailUrl"`
 	UploadedAt  string `json:"uploadedAt"`
 }
 
@@ -100,7 +99,6 @@ func (s *OcrService) UploadImage(req ImageUploadReq) (*ImageUploadResp, error) {
 	go s.runDoubaoRecognition(record)
 
 	return &ImageUploadResp{
-		TaskID:       record.TaskID,
 		ImageID:      imageID,
 		FileURL:      req.FileURL,
 		ThumbnailURL: req.ThumbnailURL,
