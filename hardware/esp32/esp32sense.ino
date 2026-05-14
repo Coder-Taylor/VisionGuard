@@ -49,6 +49,7 @@ const int PLAY_DURATION = 5000;
 // OCR状态（独立于演示流程）
 bool ocrInProgress = false;
 int ocrPollCount = 0;
+String g_expectedOcrTaskId = "";  // 本次上传的 taskId，轮询时比对防止拿到旧记录
 unsigned long lastOcrPoll = 0;
 
 // JSON提取
@@ -310,13 +311,14 @@ void doOCR() {
   
   Serial.print("[OCR上传] "); Serial.println(resp);
   
-  if (resp.indexOf("\"taskId\"") != -1 || resp.indexOf("\"imageId\"") != -1) {
-    Serial.println("[OCR] 上传成功，等待识别...");
+  g_expectedOcrTaskId = extractJsonValue(resp, "taskId");
+  if (g_expectedOcrTaskId.length() > 0) {
+    Serial.print("[OCR] 上传成功 taskId="); Serial.println(g_expectedOcrTaskId);
     ocrInProgress = true;
     ocrPollCount = 0;
     lastOcrPoll = millis();
   } else {
-    Serial.println("[OCR] 上传失败");
+    Serial.println("[OCR] 上传失败，未获取到 taskId");
   }
 }
 
@@ -329,9 +331,11 @@ void checkOCRResult() {
     String result = pollOcrResult(g_deviceId);
     ocrPollCount++;
     
-    if (result.indexOf("\"code\":0") != -1 && result.indexOf("待接入") == -1 && result.length() > 10) {
+    // 必须 taskId 匹配，否则是旧记录（豆包异步处理未完成，latest 返回上一条 completed）
+    String polledTaskId = extractJsonValue(result, "taskId");
+    if (polledTaskId == g_expectedOcrTaskId && result.indexOf("\"code\":0") != -1) {
       Serial.println("[OCR结果] " + result);
-      
+
       int p1 = result.indexOf("\"speakText\":\"");
       if (p1 != -1) {
         p1 += 13;
@@ -344,9 +348,11 @@ void checkOCRResult() {
         }
       }
       ocrInProgress = false;
+      g_expectedOcrTaskId = "";
       Serial.println("===== [OCR] 完成 =====\n");
     } else if (ocrPollCount >= 30) {
-      Serial.println("[OCR] 超时");
+      Serial.print("[OCR] 超时，expectedTaskId="); Serial.println(g_expectedOcrTaskId);
+      g_expectedOcrTaskId = "";
       ocrInProgress = false;
     }
   }
