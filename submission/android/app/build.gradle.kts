@@ -22,8 +22,8 @@ android {
         applicationId = "com.example.myapplication"
         minSdk = 31
         targetSdk = 35
-        versionCode = 9
-        versionName = "1.5.2"
+        versionCode = 10
+        versionName = "1.5.3"
 
         val amapApiKey = localProperties.getProperty("AMAP_API_KEY") ?: "EMPTY_KEY_PLEASE_SET_IN_LOCAL_PROPERTIES"
         manifestPlaceholders["AMAP_API_KEY"] = amapApiKey
