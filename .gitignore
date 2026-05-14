@@ -1,0 +1,50 @@
+*.iml
+.gradle
+/local.properties
+/.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# JVM crash logs
+hs_err_pid*.log
+replay_pid*.log
+
+# Temp & backup files
+*.tmp
+*~
+*.zip
+*.pdf
+
+# Kotlin error logs
+.kotlin/
+
+# APK builds (only ignore build output dirs, keep release APKs)
+app/build/
+submission/android/app/build/
+
+# Keystore files (never commit)
+*.keystore
+*.jks
+
+# Go backend
+backend/.env
+submission/.env
+deploy/.env
+_credentials.md
+backend/*.exe
+backend/tmp/
+deploy/**/*.exe
+
+# Claude Code local settings
+.claude/
+
+# Submission build artifacts
+submission/android/app/build/
+submission/android/.gradle/
+submission/android/build/
+submission/android/local.properties
+backend/server

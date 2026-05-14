@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>VisionGuard Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+* { margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; }
+#map { width: 100%; height: 100%; }
+.legend { background: white; padding: 8px 12px; border-radius: 8px; font-size: 12px; line-height: 1.8; box-shadow: 0 1px 4px rgba(0,0,0,0.2); }
+.legend i { width: 12px; height: 12px; display: inline-block; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// Init map centered on China
+var map = L.map('map', {
+    center: [35.86, 104.19],
+    zoom: 5,
+    zoomControl: true,
+    attributionControl: false
+});
+
+// Tile layer - uses OpenStreetMap
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19
+}).addTo(map);
+
+// Marker layer groups
+var positionMarkers = L.layerGroup().addTo(map);
+var alertMarkers = L.layerGroup().addTo(map);
+var trajectoryLines = L.layerGroup().addTo(map);
+var allBounds = L.latLngBounds([]);
+
+// Icons
+var positionIcon = L.divIcon({
+    html: '<div style="background:#165DFF;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.3);"></div>',
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+    className: ''
+});
+
+var alertIcon = L.divIcon({
+    html: '<div style="background:#F53F3F;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.3);animation:pulse 1.5s infinite;"></div>',
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+    className: ''
+});
+
+// Add CSS animation for alert pulse
+var style = document.createElement('style');
+style.textContent = '@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(245,63,63,0.5); } 70% { box-shadow: 0 0 0 10px rgba(245,63,63,0); } 100% { box-shadow: 0 0 0 0 rgba(245,63,63,0); } }';
+document.head.appendChild(style);
+
+// Legend
+var legend = L.control({position: 'bottomright'});
+legend.onAdd = function() {
+    var div = L.DomUtil.create('div', 'legend');
+    div.innerHTML = '<i style="background:#165DFF;"></i> 设备位置<br><i style="background:#F53F3F;"></i> 告警位置';
+    return div;
+};
+legend.addTo(map);
+
+// === Functions called from Kotlin ===
+
+function clearAll() {
+    positionMarkers.clearLayers();
+    alertMarkers.clearLayers();
+    trajectoryLines.clearLayers();
+    allBounds = L.latLngBounds([]);
+}
+
+function addPosition(lat, lng, title, time) {
+    var marker = L.marker([lat, lng], {icon: positionIcon})
+        .bindPopup('<b>' + title + '</b><br>' + time)
+        .addTo(positionMarkers);
+    allBounds.extend([lat, lng]);
+}
+
+function addAlert(lat, lng, title, type, time) {
+    var marker = L.marker([lat, lng], {icon: alertIcon})
+        .bindPopup('<b style="color:#F53F3F;">' + type + '</b><br>' + title + '<br>' + time)
+        .addTo(alertMarkers);
+    allBounds.extend([lat, lng]);
+}
+
+function addTrajectory(pointsJson) {
+    var points = JSON.parse(pointsJson);
+    if (points.length < 2) return;
+    var latlngs = points.map(function(p) { return [p.lat, p.lng]; });
+    var line = L.polyline(latlngs, {
+        color: '#165DFF',
+        weight: 3,
+        opacity: 0.6,
+        dashArray: '8, 6'
+    }).addTo(trajectoryLines);
+    points.forEach(function(p) { allBounds.extend([p.lat, p.lng]); });
+}
+
+function fitBounds() {
+    if (allBounds.isValid()) {
+        map.fitBounds(allBounds, {padding: [40, 40], maxZoom: 15});
+    }
+}
+
+// Notify Kotlin when map is ready
+map.whenReady(function() {
+    if (window.MapBridge) {
+        window.MapBridge.onMapReady();
+    }
+});
+
+// Invalidate size on resize
+window.addEventListener('resize', function() {
+    map.invalidateSize();
+});
+</script>
+</body>
+</html>
