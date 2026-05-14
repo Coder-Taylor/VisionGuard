@@ -47,3 +47,4 @@ submission/android/app/build/
 submission/android/.gradle/
 submission/android/build/
 submission/android/local.properties
+backend/server
