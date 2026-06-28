@@ -49,3 +49,11 @@ submission/android/build/
 submission/android/local.properties
 backend/server
 strip_conflicts.py
+
+# APK 构建产物（>100MB，已超出 GitHub 单文件限制，通过 Releases 分发）
+*.apk
+apk/
+
+# ONNX 模型文件（从 YOLO 官方源下载）
+*.onnx
+bfg.jar

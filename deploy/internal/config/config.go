@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"os"
+	"strconv"
 )
 
 type Config struct {
@@ -57,7 +58,7 @@ func Load() *Config {
 		JWTSecret: jwtSecret,
 
 		DeviceUniqueCode:      getEnv("DEVICE_UNIQUE_CODE", "DEVICE_2026_ESP32_K210"),
-		DeviceXORKey:          0x4B,
+		DeviceXORKey:          byte(getEnvInt("DEVICE_XOR_KEY", 0x4B)), // 默认 0x4B (75)
 		DeviceActivationToken: os.Getenv("DEVICE_ACTIVATION_TOKEN"),
 
 		OCRServiceURL: getEnv("OCR_SERVICE_URL", ""),
@@ -71,6 +72,15 @@ func Load() *Config {
 func getEnv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
+	}
+	return fallback
+}
+
+func getEnvInt(key string, fallback int) int {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			return n
+		}
 	}
 	return fallback
 }

@@ -189,6 +189,14 @@ python3 test_ocr.py             # OCR 全链路测试
 - 实时推送为轮询模式（非 FCM/WebSocket）
 - 固件升级/推送发送为 stub，无单元测试
 
+### ⚠️ 轨迹时区陷阱
+
+轨迹 API（`GET /location/trajectory`）默认 `end = time.Now()`，SQL 用 `created_at BETWEEN start AND end` 过滤。**直接 INSERT 轨迹数据时，`created_at` 必须在服务器当前时间之前**，否则全部被排除，APP 地图上看不到轨迹线，只能看到 `/location/latest` 返回的最后一个蓝点。
+
+> **根因**：`handler/location.go:75-76` — `end = time.Now()`，不支持未来时间。
+> **排查**：`ssh root@47.94.146.53 date` 看服务器 CST 时间，确保轨迹点 `created_at` ≤ 当前时间。
+> **修复**：`UPDATE locations SET created_at = created_at - INTERVAL '1 day' WHERE ...`
+
 ---
 
 ## Android 开发
