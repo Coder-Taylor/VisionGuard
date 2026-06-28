@@ -48,3 +48,4 @@ submission/android/.gradle/
 submission/android/build/
 submission/android/local.properties
 backend/server
+strip_conflicts.py
